@@ -12,7 +12,7 @@ from hos_engine.routing import RoutingError, get_route
 from hos_engine.team_engine import simulate_team_trip
 
 from .models import Trip
-from .serializers import TripRequestSerializer, TripResponseSerializer, resolve_cycle_cap_hours
+from .serializers import TripRequestSerializer, TripResponseSerializer, resolve_cycle_cap_days, resolve_cycle_cap_hours
 
 
 def _parse_client_local_time(value):
@@ -81,6 +81,7 @@ class TripCreateAPIView(APIView):
 
         trip_start = _parse_client_local_time(d.get("client_local_time")) or datetime.now()
         max_cycle_hours = resolve_cycle_cap_hours(d["cycle_schedule"], d.get("custom_cycle_hours"))
+        cycle_cap_days = resolve_cycle_cap_days(d["cycle_schedule"], d.get("custom_cycle_days"))
         num_drivers = d["num_drivers"]
         restart_hours = d["restart_hours"]
 
@@ -142,6 +143,7 @@ class TripCreateAPIView(APIView):
             current_cycle_used_hours=d["current_cycle_used_hours"],
             cycle_schedule=d["cycle_schedule"],
             cycle_cap_hours=max_cycle_hours,
+            cycle_cap_days=cycle_cap_days,
             num_drivers=num_drivers,
             co_driver_name=d.get("co_driver_name", ""),
             restart_hours=restart_hours,

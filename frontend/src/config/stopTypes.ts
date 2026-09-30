@@ -49,12 +49,13 @@ export const STOP_ORDER: StopType[] = ["current", "pickup", "dropoff", "fuel", "
 /** The 70/8 vs 60/7 schedule label used anywhere a restart's reason text
  * names which cycle it resets — centralized so it can't drift between the
  * operational-stops list and the ELD log sheet's own tooltip. "custom"
- * isn't a named FMCSA schedule, so it reads its cap straight from the
- * trip's own `cycle_cap_hours` instead of a fixed 70/60. */
-export function scheduleLabel(schedule: CycleSchedule, cycleCapHours: number): string {
+ * isn't a named FMCSA schedule, so it builds the same "hours/days" shape
+ * from the trip's own `cycle_cap_hours`/`cycle_cap_days` instead of a fixed
+ * 70/8 or 60/7 — a schedule name is always two numbers, never one. */
+export function scheduleLabel(schedule: CycleSchedule, cycleCapHours: number, cycleCapDays: number): string {
   if (schedule === "70/8") return "70-hr/8-day"
   if (schedule === "60/7") return "60-hr/7-day"
-  return `${cycleCapHours}-hr custom`
+  return `${cycleCapHours}-hr/${cycleCapDays}-day`
 }
 
 /** `STOP_LABELS.restart`/`STOP_REASONS.restart` above assume the real
@@ -66,6 +67,6 @@ export function restartLabel(restartHours: number): string {
   return `${restartHours}-hr restart`
 }
 
-export function restartReason(restartHours: number, schedule: CycleSchedule, cycleCapHours: number): string {
-  return `${restartHours}-hr restart to reset the ${scheduleLabel(schedule, cycleCapHours)} cycle`
+export function restartReason(restartHours: number, schedule: CycleSchedule, cycleCapHours: number, cycleCapDays: number): string {
+  return `${restartHours}-hr restart to reset the ${scheduleLabel(schedule, cycleCapHours, cycleCapDays)} cycle`
 }

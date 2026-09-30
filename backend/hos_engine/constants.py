@@ -10,8 +10,12 @@ RESTART_DURATION_HOURS = 34.0
 
 # A carrier assigns drivers to one schedule or the other — never both — per
 # §395.3(b). "70/8" is the default assumption from the original brief;
-# "60/7" is for carriers that don't operate every day of the week.
+# "60/7" is for carriers that don't operate every day of the week. Each
+# named schedule is really two numbers (hours *and* days) — kept as two
+# parallel dicts rather than tuples so call sites that only need the hour
+# cap (most of them) don't have to unpack a pair they don't use.
 CYCLE_SCHEDULES = {"70/8": 70.0, "60/7": 60.0}
+CYCLE_SCHEDULE_DAYS = {"70/8": 8, "60/7": 7}
 DEFAULT_CYCLE_SCHEDULE = "70/8"
 
 FUEL_INTERVAL_MILES = 1000.0

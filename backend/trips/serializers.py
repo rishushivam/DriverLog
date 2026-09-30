@@ -1,6 +1,6 @@
 from rest_framework import serializers
 
-from hos_engine.constants import CYCLE_SCHEDULES, DEFAULT_CYCLE_SCHEDULE, RESTART_DURATION_HOURS
+from hos_engine.constants import CYCLE_SCHEDULE_DAYS, CYCLE_SCHEDULES, DEFAULT_CYCLE_SCHEDULE, RESTART_DURATION_HOURS
 
 from .models import Trip
 
@@ -19,9 +19,11 @@ class TripRequestSerializer(serializers.Serializer):
     cycle_schedule = serializers.ChoiceField(
         choices=list(CYCLE_SCHEDULES.keys()) + ["custom"], default=DEFAULT_CYCLE_SCHEDULE
     )
-    # Required (and only meaningful) when cycle_schedule == "custom" — lets
-    # the tool explore a cycle cap other than the two FMCSA-named ones.
+    # Required (and only meaningful) when cycle_schedule == "custom" — a
+    # schedule is really two numbers ("70-hour / 8-day"), so a custom one
+    # needs its own day count too, not just the hour cap standing in alone.
     custom_cycle_hours = serializers.FloatField(min_value=1.0, max_value=168.0, required=False, allow_null=True, default=None)
+    custom_cycle_days = serializers.IntegerField(min_value=1, max_value=30, required=False, allow_null=True, default=None)
     # 2 = real team-driving simulation (see hos_engine/team_engine.py), not
     # just a label. Both drivers share the one current_cycle_used_hours
     # input above — no separate per-driver starting cycle.
@@ -41,10 +43,14 @@ class TripRequestSerializer(serializers.Serializer):
     client_local_time = serializers.CharField(required=False, allow_blank=True, allow_null=True, default=None)
 
     def validate(self, data):
-        if data["cycle_schedule"] == "custom" and data.get("custom_cycle_hours") is None:
-            raise serializers.ValidationError(
-                {"custom_cycle_hours": ["Required when cycle_schedule is 'custom'."]}
-            )
+        if data["cycle_schedule"] == "custom":
+            errors = {}
+            if data.get("custom_cycle_hours") is None:
+                errors["custom_cycle_hours"] = ["Required when cycle_schedule is 'custom'."]
+            if data.get("custom_cycle_days") is None:
+                errors["custom_cycle_days"] = ["Required when cycle_schedule is 'custom'."]
+            if errors:
+                raise serializers.ValidationError(errors)
         cap = resolve_cycle_cap_hours(data["cycle_schedule"], data.get("custom_cycle_hours"))
         if data["current_cycle_used_hours"] > cap:
             raise serializers.ValidationError(
@@ -60,6 +66,15 @@ def resolve_cycle_cap_hours(cycle_schedule: str, custom_cycle_hours) -> float:
     if cycle_schedule == "custom":
         return custom_cycle_hours
     return CYCLE_SCHEDULES[cycle_schedule]
+
+
+def resolve_cycle_cap_days(cycle_schedule: str, custom_cycle_days) -> int:
+    """The day count that names the schedule — 8/7 for a named schedule, or
+    the driver-supplied value for "custom". Display-only (see Trip.cycle_
+    cap_days), but a schedule name is two numbers, not one."""
+    if cycle_schedule == "custom":
+        return custom_cycle_days
+    return CYCLE_SCHEDULE_DAYS[cycle_schedule]
 
 
 class TripResponseSerializer(serializers.ModelSerializer):
@@ -78,6 +93,7 @@ class TripResponseSerializer(serializers.ModelSerializer):
             "current_cycle_used_hours",
             "cycle_schedule",
             "cycle_cap_hours",
+            "cycle_cap_days",
             "num_drivers",
             "co_driver_name",
             "restart_hours",

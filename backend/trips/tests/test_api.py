@@ -52,19 +52,28 @@ class TripApiTests(TestCase):
         response = self.client.post("/api/trips/", payload, format="json")
         self.assertEqual(response.status_code, 400)
 
-    def test_custom_schedule_without_custom_cycle_hours_is_rejected(self):
+    def test_custom_schedule_without_custom_cycle_hours_or_days_is_rejected(self):
         payload = {**self.valid_payload, "cycle_schedule": "custom"}
         response = self.client.post("/api/trips/", payload, format="json")
         self.assertEqual(response.status_code, 400)
-        self.assertIn("custom_cycle_hours", response.json())
+        errors = response.json()
+        self.assertIn("custom_cycle_hours", errors)
+        self.assertIn("custom_cycle_days", errors)
+
+    def test_custom_schedule_missing_only_custom_cycle_days_is_rejected(self):
+        payload = {**self.valid_payload, "cycle_schedule": "custom", "custom_cycle_hours": 45.0}
+        response = self.client.post("/api/trips/", payload, format="json")
+        self.assertEqual(response.status_code, 400)
+        self.assertIn("custom_cycle_days", response.json())
 
     @patch("trips.views.get_route", side_effect=_fake_get_route)
     @patch("trips.views.geocode", side_effect=_fake_geocode)
-    def test_custom_cycle_hours_is_honored_end_to_end(self, mock_geocode, mock_route):
+    def test_custom_cycle_hours_and_days_are_honored_end_to_end(self, mock_geocode, mock_route):
         payload = {
             **self.valid_payload,
             "cycle_schedule": "custom",
             "custom_cycle_hours": 45.0,
+            "custom_cycle_days": 6,
             "current_cycle_used_hours": 40.0,
         }
         response = self.client.post("/api/trips/", payload, format="json")
@@ -72,16 +81,27 @@ class TripApiTests(TestCase):
         data = response.json()
         self.assertEqual(data["cycle_schedule"], "custom")
         self.assertEqual(data["cycle_cap_hours"], 45.0)
+        self.assertEqual(data["cycle_cap_days"], 6)
 
     def test_custom_cycle_hours_still_enforces_its_own_cap(self):
         payload = {
             **self.valid_payload,
             "cycle_schedule": "custom",
             "custom_cycle_hours": 45.0,
+            "custom_cycle_days": 6,
             "current_cycle_used_hours": 50.0,
         }
         response = self.client.post("/api/trips/", payload, format="json")
         self.assertEqual(response.status_code, 400)
+
+    @patch("trips.views.get_route", side_effect=_fake_get_route)
+    @patch("trips.views.geocode", side_effect=_fake_geocode)
+    def test_named_schedules_report_their_own_cycle_cap_days(self, mock_geocode, mock_route):
+        response = self.client.post(
+            "/api/trips/", {**self.valid_payload, "cycle_schedule": "60/7"}, format="json"
+        )
+        self.assertEqual(response.status_code, 201)
+        self.assertEqual(response.json()["cycle_cap_days"], 7)
 
     @patch(
         "trips.views.geocode",

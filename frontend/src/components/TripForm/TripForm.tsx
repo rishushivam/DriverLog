@@ -27,6 +27,7 @@ const initialForm = {
   current_cycle_used_hours: "",
   cycle_schedule: "70/8" as CycleSchedule,
   custom_cycle_hours: "",
+  custom_cycle_days: "",
   num_drivers: "1" as "1" | "2",
   co_driver_name: "",
   restart_hours: DEFAULT_RESTART_HOURS,
@@ -80,6 +81,7 @@ export function TripForm({ onSubmit, isSubmitting, error, driverId, onDriverChan
       current_cycle_used_hours: Number(form.current_cycle_used_hours),
       cycle_schedule: form.cycle_schedule,
       custom_cycle_hours: form.cycle_schedule === "custom" ? Number(form.custom_cycle_hours) : undefined,
+      custom_cycle_days: form.cycle_schedule === "custom" ? Number(form.custom_cycle_days) : undefined,
       num_drivers: form.num_drivers === "2" ? 2 : 1,
       co_driver_name: form.num_drivers === "2" ? form.co_driver_name.trim() : "",
       restart_hours: Number(form.restart_hours),
@@ -141,6 +143,27 @@ export function TripForm({ onSubmit, isSubmitting, error, driverId, onDriverChan
           />
           {fieldError("custom_cycle_hours") && (
             <p className="text-xs text-red-700">{fieldError("custom_cycle_hours")}</p>
+          )}
+        </div>
+      )}
+      {form.cycle_schedule === "custom" && (
+        <div className="flex flex-col gap-1.5">
+          <label className="text-[11px] font-semibold uppercase tracking-wide text-slate-500" htmlFor="custom-cycle-days">
+            Cycle days
+          </label>
+          <input
+            id="custom-cycle-days"
+            type="number"
+            min={1}
+            max={30}
+            step={1}
+            required
+            value={form.custom_cycle_days}
+            onChange={handleChange("custom_cycle_days")}
+            className="tabular-nums rounded-sm border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 transition-colors duration-150 focus:border-navy-500 focus:outline-none focus-visible:ring-2 focus-visible:ring-navy-500/40"
+          />
+          {fieldError("custom_cycle_days") && (
+            <p className="text-xs text-red-700">{fieldError("custom_cycle_days")}</p>
           )}
         </div>
       )}

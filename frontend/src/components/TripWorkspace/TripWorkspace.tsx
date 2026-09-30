@@ -78,6 +78,7 @@ export function TripWorkspace({ trip, driver }: Props) {
           onSelect={selectSegment}
           cycleSchedule={trip.cycle_schedule}
           cycleCapHours={trip.cycle_cap_hours}
+          cycleCapDays={trip.cycle_cap_days}
           restartHours={trip.restart_hours}
         />
       </div>

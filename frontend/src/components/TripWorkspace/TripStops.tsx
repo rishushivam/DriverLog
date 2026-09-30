@@ -11,6 +11,7 @@ interface Props {
    * and which cycle it resets) — every other stop type is fixed. */
   cycleSchedule: CycleSchedule
   cycleCapHours: number
+  cycleCapDays: number
   restartHours: number
 }
 
@@ -18,12 +19,12 @@ interface Props {
  * every required stop as a scannable card (icon + type + place + the three
  * numbers a dispatcher actually needs), so meaning doesn't depend on
  * correctly reading a marker color. */
-export function TripStops({ stops, activeSegmentIndex, onSelect, cycleSchedule, cycleCapHours, restartHours }: Props) {
+export function TripStops({ stops, activeSegmentIndex, onSelect, cycleSchedule, cycleCapHours, cycleCapDays, restartHours }: Props) {
   if (stops.length === 0) return null
 
   const labelFor = (type: OperationalStop["type"]) => (type === "restart" ? restartLabel(restartHours) : STOP_LABELS[type])
   const reasonFor = (type: OperationalStop["type"]) =>
-    type === "restart" ? restartReason(restartHours, cycleSchedule, cycleCapHours) : STOP_REASONS[type]
+    type === "restart" ? restartReason(restartHours, cycleSchedule, cycleCapHours, cycleCapDays) : STOP_REASONS[type]
 
   return (
     <div>

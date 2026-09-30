@@ -20,6 +20,12 @@ class Trip(models.Model):
     # never has to know which schedules are "named" vs "custom" to compute
     # cycle-hours-available-tomorrow.
     cycle_cap_hours = models.FloatField(default=70.0)
+    # The rolling-window day count that names the schedule (8 for 70/8, 7
+    # for 60/7, or the driver-supplied value for "custom"). Display-only —
+    # no calculation in this app currently keys off it — but a schedule is
+    # a two-number name ("70-hour / 8-day"), so a custom one needs both
+    # numbers, not just the hour cap standing in alone.
+    cycle_cap_days = models.PositiveSmallIntegerField(default=8)
     # 2 = real team-driving simulation (two independent HOS clocks,
     # alternating who's behind the wheel) — not just a label. Both drivers
     # start from the same current_cycle_used_hours; there's no separate

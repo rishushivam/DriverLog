@@ -64,7 +64,7 @@ function describeSegment(seg: DailyLogSegment, trip: TripResponse) {
         Icon: STOP_ICONS.restart,
         color: STOP_COLORS.restart,
         title: restartLabel(trip.restart_hours),
-        reason: restartReason(trip.restart_hours, trip.cycle_schedule, trip.cycle_cap_hours),
+        reason: restartReason(trip.restart_hours, trip.cycle_schedule, trip.cycle_cap_hours, trip.cycle_cap_days),
       }
     }
     return {
@@ -499,7 +499,7 @@ export function ELDLogSheet({ log, driver, trip, allLogs, dayIndex, highlightMin
           />
           {trip.cycle_schedule === "custom" && (
             <RecapCycleBlock
-              title={`${trip.cycle_cap_hours}-hour custom cycle`}
+              title={`${trip.cycle_cap_hours}-hour / ${trip.cycle_cap_days}-day custom cycle`}
               a={`${recap.cycleHoursUsed.toFixed(2)} hr`}
               b={`${recap.cycleHoursAvailableTomorrow.toFixed(2)} hr`}
               c={`${recap.onDutyHoursLastWindow.toFixed(2)} hr`}

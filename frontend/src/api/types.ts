@@ -104,6 +104,10 @@ export interface TripResponse {
    * this for cycle-cap math; never assume 70 or 60 from cycle_schedule
    * alone. */
   cycle_cap_hours: number
+  /** The rolling-window day count that names the schedule (8 for 70/8, 7
+   * for 60/7, or the driver-supplied value for "custom") — display-only,
+   * but a schedule is a two-number name, not just the hour cap alone. */
+  cycle_cap_days: number
   num_drivers: 1 | 2
   co_driver_name: string
   /** 49 CFR §395.3(c)'s restart is fixed at 34 consecutive hours off duty —
@@ -127,9 +131,12 @@ export interface TripRequest {
   dropoff_location: string
   current_cycle_used_hours: number
   cycle_schedule: CycleSchedule
-  /** Required (and only meaningful) when cycle_schedule is "custom" — the
-   * cycle cap to enforce instead of 70 or 60. */
+  /** Required (and only meaningful) when cycle_schedule is "custom" — a
+   * schedule is really two numbers ("70-hour / 8-day"), so a custom one
+   * needs both the cycle cap and its own day count, not just the cap
+   * standing in alone. */
   custom_cycle_hours?: number
+  custom_cycle_days?: number
   /** 2 = a real two-driver simulation (independent HOS clocks, alternating
    * who's driving) — see hos_engine/team_engine.py. Both drivers share the
    * one current_cycle_used_hours above. */

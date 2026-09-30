@@ -1,4 +1,9 @@
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:8000"
+// Every call site below appends its own leading "/api/...", so a trailing
+// slash left on the env var (e.g. "https://host.onrender.com/") would
+// otherwise produce "https://host.onrender.com//api/..." — a path no
+// Django URL pattern matches, failing as a silent 404 rather than a clear
+// config error.
+const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL ?? "http://localhost:8000").replace(/\/+$/, "")
 
 export class HttpError extends Error {
   status: number
