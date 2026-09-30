@@ -1,7 +1,15 @@
+import time
+
 import requests
 
 ORS_BASE_URL = "https://api.openrouteservice.org"
 METERS_PER_MILE = 1609.344
+# See geocoding.py's own note: one retry absorbs a transient connection-
+# level blip (timeout, DNS, connection refused) from a free-tier host's
+# less consistent outbound network — never retries an actual HTTP error
+# response, only a transport-level exception.
+_MAX_ATTEMPTS = 2
+_RETRY_DELAY_SECONDS = 1.5
 
 
 class RoutingError(Exception):
@@ -17,15 +25,23 @@ def get_route(origin_coords: list, dest_coords: list, api_key: str) -> dict:
     average truck speed, never from ORS's own "duration" (which reflects
     car-like travel patterns with no awareness of FMCSA rest rules).
     """
-    try:
-        resp = requests.post(
-            f"{ORS_BASE_URL}/v2/directions/driving-hgv/geojson",
-            json={"coordinates": [origin_coords, dest_coords]},
-            headers={"Authorization": api_key, "Content-Type": "application/json"},
-            timeout=15,
-        )
-    except requests.RequestException as exc:
-        raise RoutingError(f"Could not reach the routing service: {exc}") from exc
+    last_exc: requests.RequestException | None = None
+    resp = None
+    for attempt in range(_MAX_ATTEMPTS):
+        try:
+            resp = requests.post(
+                f"{ORS_BASE_URL}/v2/directions/driving-hgv/geojson",
+                json={"coordinates": [origin_coords, dest_coords]},
+                headers={"Authorization": api_key, "Content-Type": "application/json"},
+                timeout=20,
+            )
+            break
+        except requests.RequestException as exc:
+            last_exc = exc
+            if attempt < _MAX_ATTEMPTS - 1:
+                time.sleep(_RETRY_DELAY_SECONDS)
+    if resp is None:
+        raise RoutingError(f"Could not reach the routing service: {last_exc}") from last_exc
 
     if resp.status_code != 200:
         raise RoutingError(f"Routing request failed ({resp.status_code}): {resp.text[:200]}")

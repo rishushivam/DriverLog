@@ -1,6 +1,17 @@
+import time
+
 import requests
 
 ORS_BASE_URL = "https://api.openrouteservice.org"
+# A free-tier host's outbound network is more prone to occasional slow DNS/
+# TLS handshakes than a local dev machine, especially right after waking
+# from an idle spin-down — one quick retry on a connection-level failure
+# (timeout, DNS, connection refused) absorbs that without making a user
+# resubmit the whole form for what's usually a one-off blip. This never
+# retries an actual HTTP error response (4xx/5xx) — only a transport-level
+# exception, handled separately below.
+_MAX_ATTEMPTS = 2
+_RETRY_DELAY_SECONDS = 1.5
 
 
 class GeocodingError(Exception):
@@ -9,14 +20,22 @@ class GeocodingError(Exception):
 
 def geocode(address: str, api_key: str) -> list:
     """Resolves a free-text address to [longitude, latitude] via ORS."""
-    try:
-        resp = requests.get(
-            f"{ORS_BASE_URL}/geocode/search",
-            params={"api_key": api_key, "text": address, "size": 1},
-            timeout=10,
-        )
-    except requests.RequestException as exc:
-        raise GeocodingError(f"Could not reach the geocoding service: {exc}") from exc
+    last_exc: requests.RequestException | None = None
+    resp = None
+    for attempt in range(_MAX_ATTEMPTS):
+        try:
+            resp = requests.get(
+                f"{ORS_BASE_URL}/geocode/search",
+                params={"api_key": api_key, "text": address, "size": 1},
+                timeout=20,
+            )
+            break
+        except requests.RequestException as exc:
+            last_exc = exc
+            if attempt < _MAX_ATTEMPTS - 1:
+                time.sleep(_RETRY_DELAY_SECONDS)
+    if resp is None:
+        raise GeocodingError(f"Could not reach the geocoding service: {last_exc}") from last_exc
 
     if resp.status_code != 200:
         raise GeocodingError(f"Geocoding request failed ({resp.status_code}) for '{address}'.")
