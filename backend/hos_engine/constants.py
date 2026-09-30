@@ -1,0 +1,24 @@
+AVG_TRUCK_SPEED_MPH = 55.0
+
+MAX_DRIVING_HOURS_PER_PERIOD = 11.0
+MAX_ON_DUTY_WINDOW_HOURS = 14.0
+DRIVING_HOURS_BEFORE_BREAK = 8.0
+MANDATORY_BREAK_DURATION_HOURS = 0.5
+MIN_OFF_DUTY_RESET_HOURS = 10.0
+MAX_CYCLE_HOURS = 70.0
+RESTART_DURATION_HOURS = 34.0
+
+# A carrier assigns drivers to one schedule or the other — never both — per
+# §395.3(b). "70/8" is the default assumption from the original brief;
+# "60/7" is for carriers that don't operate every day of the week.
+CYCLE_SCHEDULES = {"70/8": 70.0, "60/7": 60.0}
+DEFAULT_CYCLE_SCHEDULE = "70/8"
+
+FUEL_INTERVAL_MILES = 1000.0
+FUEL_STOP_DURATION_HOURS = 0.5
+
+PICKUP_DURATION_HOURS = 1.0
+DROPOFF_DURATION_HOURS = 1.0
+
+HOURS_EPSILON = 1e-6
+MILES_EPSILON = 1e-6

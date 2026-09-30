@@ -1,0 +1,190 @@
+@import "tailwindcss";
+
+@theme {
+  --color-navy-50: #eef1f6;
+  --color-navy-200: #c3ceda;
+  --color-navy-500: #2f4a75;
+  --color-navy-600: #1b2a47;
+  --color-navy-700: #12203a;
+  --color-navy-900: #0a1220;
+}
+
+::selection {
+  background: var(--color-navy-600);
+  color: white;
+}
+
+/* A faint ruled/graph-paper watermark for the pre-submission empty state —
+   the grid armature that runs through the log sheet is present from the
+   first viewport, not introduced only once there's data to show. */
+.ruled-grid-watermark {
+  background-image:
+    repeating-linear-gradient(to bottom, transparent, transparent 23px, var(--color-slate-200) 23px, var(--color-slate-200) 24px),
+    repeating-linear-gradient(to right, transparent, transparent 31px, var(--color-slate-200) 31px, var(--color-slate-200) 32px);
+  background-position: center;
+}
+
+/* The one authored entrance moment: results settle in rather than pop. */
+@keyframes reveal-rise {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-reveal {
+  animation: reveal-rise 420ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-reveal {
+    animation: none;
+  }
+}
+
+/* The log sheet's per-segment hover card — a quick, deliberate pop rather
+   than an instant snap-in, replayed on every segment change via a `key`
+   remount in ELDLogSheet.tsx. Positioning (centering + offset above the
+   row) is handled by the card's own parent via inline `transform`, so this
+   scale animation never fights that with a second `transform` value on the
+   same element. */
+@keyframes tooltip-pop {
+  from {
+    opacity: 0;
+    transform: scale(0.92) translateY(3px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+.tooltip-pop {
+  transform-origin: bottom center;
+  animation: tooltip-pop 150ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tooltip-pop {
+    animation: none;
+  }
+}
+
+/* The log sheet's per-segment SVG hit region is `role="button"` but isn't a
+   real <button>, so it ships the browser's raw default focus outline (a
+   thick UA-colored ring) instead of the navy focus language every real
+   control on this page uses (`focus-visible:ring-2 focus-visible:ring-
+   navy-500/40`). SVG doesn't take Tailwind's ring utilities, so it's themed
+   directly here — same idea, same color, different property. */
+.log-segment-hit {
+  outline: none;
+}
+.log-segment-hit:focus-visible {
+  outline: 2px solid var(--color-navy-500);
+  outline-offset: -2px;
+}
+
+/* Thin, wide scrollbar for the horizontally-scrolling log sheet — the parts
+   we didn't draw still carry the design. */
+.eld-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-navy-200) transparent;
+}
+.eld-scroll::-webkit-scrollbar {
+  height: 8px;
+}
+.eld-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+.eld-scroll::-webkit-scrollbar-thumb {
+  background-color: var(--color-navy-200);
+  border-radius: 9999px;
+}
+
+/* Map stop markers pop in with a per-stop stagger (see RouteMap.tsx) rather
+   than appearing all at once. `--marker-scale` is each marker's own active/
+   inactive target (RouteMap re-creates the element on every state change,
+   so the entrance animation and the active-state scale share one variable
+   rather than the animation's own `to` fighting a separate inline value). */
+@keyframes marker-pop {
+  from {
+    opacity: 0;
+    transform: scale(calc(0.4 * var(--marker-scale, 1)));
+  }
+  to {
+    opacity: 1;
+    transform: scale(var(--marker-scale, 1));
+  }
+}
+
+.marker-pop {
+  animation: marker-pop 320ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .marker-pop {
+    animation: none;
+    transform: scale(var(--marker-scale, 1));
+  }
+}
+
+/* View Transitions: a quick, deliberate cross-fade for tab switches (Route
+   Map <-> Daily Logs, day-to-day within a trip's logs) instead of the
+   browser's slower default, and switched off entirely under reduced motion. */
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation-duration: 200ms;
+  animation-timing-function: cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  ::view-transition-group(*),
+  ::view-transition-old(*),
+  ::view-transition-new(*) {
+    animation: none !important;
+  }
+}
+
+/* Print: an explicit, deterministic document layout rather than "hide
+   everything and hope the flow reformats." Every non-log section carries
+   its own `print:hidden` (App.tsx, TripWorkspace.tsx) instead of a single
+   global visibility flip, so there is never a `position: absolute`
+   fighting some ancestor's transform for a containing block — the classic
+   cause of a mysteriously blank leading page. Page geometry is explicit
+   too: one full page per calendar day, sized to the page itself, not to
+   whatever the screen's responsive width happened to be. */
+@page {
+  size: letter portrait;
+  margin: 0.4in;
+}
+
+@media print {
+  html,
+  body {
+    background: white;
+  }
+
+  /* Each day's log is a complete, self-contained document: never split
+     across a page boundary, and never sharing a page with the next day's. */
+  .eld-print-page {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+  .eld-print-page + .eld-print-page {
+    break-before: page;
+    page-break-before: always;
+  }
+
+  /* The entrance animation's fill-mode leaves a `transform` on this
+     ancestor after it finishes, which would otherwise hijack any
+     absolutely- or fixed-positioned descendant's containing block during
+     print layout. Print never sees the animation anyway. */
+  .animate-reveal {
+    animation: none !important;
+    transform: none !important;
+  }
+}
