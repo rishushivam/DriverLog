@@ -128,3 +128,24 @@ REST_FRAMEWORK = {
 
 # --- Third-party API keys ------------------------------------------------
 ORS_API_KEY = os.environ.get("ORS_API_KEY", "")
+
+# --- Logging --------------------------------------------------------------
+# Django's own default (when DEBUG=False) routes unhandled-exception
+# tracebacks to AdminEmailHandler only — since ADMINS isn't configured here,
+# that means every 500 vanishes silently, with nothing in stdout/stderr for
+# Render (or any host) to capture. This makes the traceback always print to
+# console instead, which is what actually reaches the platform's log viewer.
+LOGGING = {
+    "version": 1,
+    "disable_existing_loggers": False,
+    "handlers": {
+        "console": {"class": "logging.StreamHandler"},
+    },
+    "loggers": {
+        "django.request": {
+            "handlers": ["console"],
+            "level": "ERROR",
+            "propagate": False,
+        },
+    },
+}

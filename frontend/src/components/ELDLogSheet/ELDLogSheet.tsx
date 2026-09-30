@@ -94,9 +94,14 @@ interface Props {
    * or map stop is selected elsewhere in the workspace, so the log grid
    * reads as the same event rather than a disconnected chart. */
   highlightMinutes?: number | null
+  /** The *other* name on a team trip — never `trip.co_driver_name` read
+   * directly, since that's always the co-driver's own name regardless of
+   * whose sheet is rendering; on the co-driver's own pages the partner is
+   * the primary driver instead, and only the caller knows which is which. */
+  partnerDriverName?: string
 }
 
-export function ELDLogSheet({ log, driver, trip, allLogs, dayIndex, highlightMinutes }: Props) {
+export function ELDLogSheet({ log, driver, trip, allLogs, dayIndex, highlightMinutes, partnerDriverName }: Props) {
   const displayRemarks = groupCloseRemarks(log.remarks)
   const stepPath = buildStepPath(log.segments)
   const grandTotal = ROW_ORDER.reduce((sum, status) => sum + (log.totals[status] ?? 0), 0)
@@ -171,6 +176,10 @@ export function ELDLogSheet({ log, driver, trip, allLogs, dayIndex, highlightMin
 
         <div className="mt-3 grid grid-cols-1 gap-x-8 gap-y-2.5 text-xs sm:grid-cols-2">
           <div className="space-y-2.5">
+            <div className="flex gap-6">
+              <Field label="Driver" value={driver.driverName} />
+              {trip.num_drivers === 2 && partnerDriverName && <Field label="Co-driver" value={partnerDriverName} />}
+            </div>
             <div className="flex gap-6">
               <Field label="Total miles driving today" value={`${log.total_miles} mi`} />
               <Field label="Total mileage today" value={`${log.total_mileage_to_date} mi`} />

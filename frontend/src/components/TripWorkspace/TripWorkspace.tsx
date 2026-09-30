@@ -30,10 +30,8 @@ export function TripWorkspace({ trip, driver }: Props) {
   // Team driving never merges two people's hours onto one sheet — the
   // co-driver gets their own profile (same truck/carrier, different name)
   // rather than driver 1's identity stamped on their log.
-  const activeDriverProfile: DriverProfile =
-    activeDriverKey === "driver_1"
-      ? driver
-      : { ...driver, id: "co_driver", driverName: trip.co_driver_name || "Co-Driver" }
+  const coDriverProfile: DriverProfile = { ...driver, id: "co_driver", driverName: trip.co_driver_name || "Co-Driver" }
+  const activeDriverProfile: DriverProfile = activeDriverKey === "driver_1" ? driver : coDriverProfile
 
   const operationalStops = useMemo(() => deriveOperationalStops(trip), [trip])
   const stopSegmentIndices = useMemo(
@@ -114,6 +112,15 @@ export function TripWorkspace({ trip, driver }: Props) {
           activeIndex={activeLogIndex}
           onActiveIndexChange={setActiveLogIndex}
           highlightMinutes={highlightMinutes}
+          partnerDriverName={activeDriverKey === "driver_1" ? trip.co_driver_name : driver.driverName}
+          printSets={
+            isTeamTrip && trip.co_driver_logs
+              ? [
+                  { driver, logs: trip.logs, partnerDriverName: trip.co_driver_name },
+                  { driver: coDriverProfile, logs: trip.co_driver_logs, partnerDriverName: driver.driverName },
+                ]
+              : undefined
+          }
         />
       </div>
     </div>

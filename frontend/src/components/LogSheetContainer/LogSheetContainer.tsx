@@ -15,20 +15,40 @@ interface Props {
   activeIndex?: number
   onActiveIndexChange?: (index: number) => void
   highlightMinutes?: number | null
+  /** The other name on a team trip, for the screen's currently-active
+   * driver — see the same-named prop on `ELDLogSheet` for why this can't
+   * be derived from `trip` alone. */
+  partnerDriverName?: string
+  /** Every driver's complete log set to print — a team trip prints both
+   * drivers' full documentation, not just whichever one's tab is open on
+   * screen. Defaults to just this one driver/logs for a solo trip. */
+  printSets?: Array<{ driver: DriverProfile; logs: DailyLog[]; partnerDriverName?: string }>
 }
 
-export function LogSheetContainer({ logs, driver, trip, activeIndex, onActiveIndexChange, highlightMinutes }: Props) {
+export function LogSheetContainer({
+  logs,
+  driver,
+  trip,
+  activeIndex,
+  onActiveIndexChange,
+  highlightMinutes,
+  partnerDriverName,
+  printSets,
+}: Props) {
   const [internalIndex, setInternalIndex] = useState(0)
   const index = activeIndex ?? internalIndex
   const setIndex = onActiveIndexChange ?? setInternalIndex
 
   if (logs.length === 0) return null
 
+  const setsToPrint = printSets ?? [{ driver, logs }]
+
   return (
     <div>
       {/* Screen-only: day tabs + the currently selected day's sheet. Hidden
-          entirely from print — printing renders every day below instead,
-          one full page each, regardless of which tab happens to be open. */}
+          entirely from print — printing renders every day (and, for a team
+          trip, every driver) below instead, regardless of which tab
+          happens to be open. */}
       <div className="print:hidden">
         <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
           {logs.length > 1 ? (
@@ -58,19 +78,30 @@ export function LogSheetContainer({ logs, driver, trip, activeIndex, onActiveInd
           allLogs={logs}
           dayIndex={index}
           highlightMinutes={highlightMinutes}
+          partnerDriverName={partnerDriverName}
         />
       </div>
 
-      {/* Print-only: every day, each a complete, self-contained page — a
-          multi-day trip's daily logs are separate legal documents, not one
-          log the reader happens to be looking at. Never rendered/laid out
-          on screen (`hidden`), so it costs nothing there. */}
+      {/* Print-only: every driver's every day, each a complete,
+          self-contained page — a multi-day (and/or team) trip's daily logs
+          are separate legal documents, not just whichever one the reader
+          happened to be looking at. Never rendered/laid out on screen
+          (`hidden`), so it costs nothing there. */}
       <div className="hidden print:block">
-        {logs.map((log, i) => (
-          <div key={log.date} className="eld-print-page">
-            <ELDLogSheet log={log} driver={driver} trip={trip} allLogs={logs} dayIndex={i} />
-          </div>
-        ))}
+        {setsToPrint.map(({ driver: setDriver, logs: setLogs, partnerDriverName: setPartnerName }) =>
+          setLogs.map((log, i) => (
+            <div key={`${setDriver.id}-${log.date}`} className="eld-print-page">
+              <ELDLogSheet
+                log={log}
+                driver={setDriver}
+                trip={trip}
+                allLogs={setLogs}
+                dayIndex={i}
+                partnerDriverName={setPartnerName}
+              />
+            </div>
+          )),
+        )}
       </div>
     </div>
   )

@@ -204,7 +204,7 @@ export function TripForm({ onSubmit, isSubmitting, error, driverId, onDriverChan
         {fieldError("restart_hours") ? (
           <p className="text-xs text-red-700">{fieldError("restart_hours")}</p>
         ) : (
-          <p className="text-[11px] text-slate-500">§395.3(c) default is 34 — override to explore other reset lengths.</p>
+          <p className="text-[11px] text-slate-500">Standard reset is 34 hours off duty. Change it to see how a shorter or longer break affects the route.</p>
         )}
       </div>
       <div className="flex flex-col gap-1.5">
