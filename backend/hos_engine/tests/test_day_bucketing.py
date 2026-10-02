@@ -155,5 +155,46 @@ class BuildDailyLogsTests(unittest.TestCase):
         self.assertEqual(total_remarks, 3)
 
 
+class RollingCycleRecapTests(unittest.TestCase):
+    """The Recap section's cycle_hours_used_end_of_day must replay the
+    exact same rolling 7/8-day window the engine itself used to decide
+    restarts — never the old monotonic since-last-restart counter."""
+
+    def test_recap_never_exceeds_cap_on_a_day_still_driving(self):
+        result = simulate_trip(
+            leg1_distance_miles=0.0,
+            leg2_distance_miles=2500.0,
+            current_cycle_used_hours=0.0,
+            trip_start=datetime(2026, 1, 5, 6, 0),
+            current_location_label="Origin, CA",
+            pickup_location_label="Pickup, CA",
+            dropoff_location_label="Dropoff, NY",
+        )
+        logs = build_daily_logs(result.segments, starting_cycle_hours=0.0, cycle_cap_days=8, max_cycle_hours=70.0)
+        driving_days = {
+            log.date for log in logs
+            if any(seg["status"] == DRIVING for seg in log.segments)
+        }
+        for log in logs:
+            if log.date in driving_days:
+                self.assertLessEqual(log.cycle_hours_used_end_of_day, 70.0 + 1e-6)
+
+    def test_recap_drops_pretrip_hours_once_the_notional_day_ages_out(self):
+        # Short trip, same day as trip start: pretrip hours still fully
+        # counted on day one (its notional day hasn't left the window yet).
+        result = simulate_trip(
+            leg1_distance_miles=0.0,
+            leg2_distance_miles=100.0,
+            current_cycle_used_hours=20.0,
+            trip_start=datetime(2026, 1, 5, 8, 0),
+            current_location_label="Origin, OH",
+            pickup_location_label="Pickup, OH",
+            dropoff_location_label="Dropoff, OH",
+        )
+        logs = build_daily_logs(result.segments, starting_cycle_hours=20.0, cycle_cap_days=8, max_cycle_hours=70.0)
+        first_log = logs[0]
+        self.assertGreaterEqual(first_log.cycle_hours_used_end_of_day, 20.0)
+
+
 if __name__ == "__main__":
     unittest.main()

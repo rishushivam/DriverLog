@@ -1,9 +1,12 @@
+import { AnimatePresence, motion, useReducedMotion } from "framer-motion"
+import { Check, MapPin } from "lucide-react"
 import { useEffect, useRef, useState } from "react"
-import { MapPin } from "lucide-react"
 import { suggestLocations } from "../../api/geocode"
 import type { LocationSuggestion } from "../../api/types"
+import { quick, shake } from "../ui/motion"
 
 interface Props {
+  id: string
   label: string
   value: string
   onChange: (value: string) => void
@@ -13,15 +16,15 @@ interface Props {
 const DEBOUNCE_MS = 300
 const MIN_QUERY_LENGTH = 3
 
-/** Live-typing suggestions via the backend's ORS autocomplete proxy (see
- * trips/views.py::geocode_suggest) — debounced and abortable so a fast
- * typist doesn't queue up a pile of stale requests. Selecting a suggestion
- * fills the field with ORS's own formatted label, which the backend can
- * then geocode with high confidence on submit. */
-export function LocationField({ label, value, onChange, error }: Props) {
+/** Floating-label combobox backed by the backend's ORS autocomplete proxy
+ * (trips/views.py::geocode_suggest). Debounced and abortable so a fast
+ * typist never queues stale requests; a stale response landing after focus
+ * has moved on never reopens the list. */
+export function LocationField({ id, label, value, onChange, error }: Props) {
+  const reduced = useReducedMotion()
   const [suggestions, setSuggestions] = useState<LocationSuggestion[]>([])
   const [isOpen, setIsOpen] = useState(false)
-  const [highlightedIndex, setHighlightedIndex] = useState(-1)
+  const [highlighted, setHighlighted] = useState(-1)
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const abortRef = useRef<AbortController | null>(null)
   const containerRef = useRef<HTMLDivElement>(null)
@@ -29,133 +32,160 @@ export function LocationField({ label, value, onChange, error }: Props) {
   const suppressNextFetch = useRef(false)
 
   useEffect(() => {
-    function handleClickOutside(e: MouseEvent) {
-      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
-        setIsOpen(false)
-      }
+    function onDown(e: MouseEvent) {
+      if (containerRef.current && !containerRef.current.contains(e.target as Node)) setIsOpen(false)
     }
-    document.addEventListener("mousedown", handleClickOutside)
-    return () => document.removeEventListener("mousedown", handleClickOutside)
+    document.addEventListener("mousedown", onDown)
+    return () => document.removeEventListener("mousedown", onDown)
   }, [])
 
-  useEffect(() => {
-    return () => {
+  useEffect(
+    () => () => {
       if (debounceRef.current) clearTimeout(debounceRef.current)
       abortRef.current?.abort()
-    }
-  }, [])
+    },
+    [],
+  )
 
   function fetchSuggestions(query: string) {
     if (debounceRef.current) clearTimeout(debounceRef.current)
     abortRef.current?.abort()
-
     if (query.trim().length < MIN_QUERY_LENGTH) {
       setSuggestions([])
       setIsOpen(false)
       return
     }
-
     debounceRef.current = setTimeout(async () => {
       const controller = new AbortController()
       abortRef.current = controller
       const results = await suggestLocations(query, controller.signal)
       if (controller.signal.aborted) return
-      // The user may have already clicked or tabbed away by the time this
-      // resolves — a stale response landing after focus has moved on must
-      // not reopen a dropdown nobody's looking at.
       const stillFocused = document.activeElement === inputRef.current
       setSuggestions(results)
       setIsOpen(stillFocused && results.length > 0)
-      setHighlightedIndex(-1)
+      setHighlighted(-1)
     }, DEBOUNCE_MS)
   }
 
-  function handleInputChange(e: React.ChangeEvent<HTMLInputElement>) {
-    const next = e.target.value
-    onChange(next)
-    if (suppressNextFetch.current) {
-      suppressNextFetch.current = false
-      return
-    }
-    fetchSuggestions(next)
-  }
-
-  function selectSuggestion(suggestionLabel: string) {
+  function select(labelText: string) {
     suppressNextFetch.current = true
-    onChange(suggestionLabel)
+    onChange(labelText)
     setSuggestions([])
     setIsOpen(false)
-    setHighlightedIndex(-1)
+    setHighlighted(-1)
   }
 
-  function handleKeyDown(e: React.KeyboardEvent<HTMLInputElement>) {
+  function onKeyDown(e: React.KeyboardEvent<HTMLInputElement>) {
     if (!isOpen || suggestions.length === 0) return
     if (e.key === "ArrowDown") {
       e.preventDefault()
-      setHighlightedIndex((i) => Math.min(i + 1, suggestions.length - 1))
+      setHighlighted((i) => Math.min(i + 1, suggestions.length - 1))
     } else if (e.key === "ArrowUp") {
       e.preventDefault()
-      setHighlightedIndex((i) => Math.max(i - 1, 0))
-    } else if (e.key === "Enter" && highlightedIndex >= 0) {
+      setHighlighted((i) => Math.max(i - 1, 0))
+    } else if (e.key === "Enter" && highlighted >= 0) {
       e.preventDefault()
-      selectSuggestion(suggestions[highlightedIndex].label)
+      select(suggestions[highlighted].label)
     } else if (e.key === "Escape") {
       setIsOpen(false)
     }
   }
 
+  const valid = value.trim().length >= MIN_QUERY_LENGTH && !error
+  const listId = `${id}-list`
+
   return (
-    <div ref={containerRef} className="relative flex flex-col gap-1.5">
-      <label className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">{label}</label>
-      <input
-        ref={inputRef}
-        type="text"
-        required
-        role="combobox"
-        aria-expanded={isOpen}
-        aria-autocomplete="list"
-        autoComplete="off"
-        value={value}
-        onChange={handleInputChange}
-        onKeyDown={handleKeyDown}
-        onFocus={() => suggestions.length > 0 && setIsOpen(true)}
-        onBlur={() => {
-          if (debounceRef.current) clearTimeout(debounceRef.current)
-          abortRef.current?.abort()
-        }}
-        placeholder="Street, City, State"
-        className="rounded-sm border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 transition-colors duration-150 focus:border-navy-500 focus:outline-none focus-visible:ring-2 focus-visible:ring-navy-500/40"
-      />
-      {error && <p className="text-xs text-red-700">{error}</p>}
-      {isOpen && suggestions.length > 0 && (
-        <ul
-          role="listbox"
-          className="absolute top-full left-0 z-20 mt-1 w-full overflow-hidden rounded-sm border border-slate-300 bg-white shadow-md"
+    <div ref={containerRef} className="relative flex flex-col gap-1">
+      <motion.div
+        key={error ? "err" : "ok"}
+        animate={error && !reduced ? shake : { x: 0 }}
+        className={`float-field relative rounded-xl border bg-surface transition-[border-color,box-shadow] duration-150 focus-within:shadow-[0_0_0_4px_var(--accent-soft)] ${
+          error ? "border-red-400 focus-within:border-red-500" : "border-line hover:border-line-strong focus-within:border-accent"
+        }`}
+      >
+        <input
+          ref={inputRef}
+          id={id}
+          type="text"
+          role="combobox"
+          aria-expanded={isOpen}
+          aria-controls={listId}
+          aria-autocomplete="list"
+          aria-invalid={!!error}
+          aria-describedby={error ? `${id}-error` : undefined}
+          autoComplete="off"
+          placeholder=" "
+          value={value}
+          onChange={(e) => {
+            onChange(e.target.value)
+            if (suppressNextFetch.current) {
+              suppressNextFetch.current = false
+              return
+            }
+            fetchSuggestions(e.target.value)
+          }}
+          onKeyDown={onKeyDown}
+          onFocus={() => suggestions.length > 0 && setIsOpen(true)}
+          onBlur={() => {
+            if (debounceRef.current) clearTimeout(debounceRef.current)
+            abortRef.current?.abort()
+          }}
+          className="peer w-full rounded-xl bg-transparent px-3.5 pt-5 pb-1.5 pr-9 text-[15px] text-ink outline-none placeholder:text-transparent"
+        />
+        <label
+          htmlFor={id}
+          className="pointer-events-none absolute top-1/2 left-3.5 origin-left -translate-y-1/2 text-[14px] text-ink-2 transition-[transform,color] duration-150"
         >
-          {suggestions.map((s, i) => (
-            <li
-              key={`${s.label}-${i}`}
-              role="option"
-              aria-selected={i === highlightedIndex}
-              onMouseDown={(e) => {
-                e.preventDefault()
-                selectSuggestion(s.label)
-              }}
-              onMouseEnter={() => setHighlightedIndex(i)}
-              className={`flex cursor-pointer items-start gap-2 px-3 py-2 text-sm transition-colors ${
-                i === highlightedIndex ? "bg-navy-50 text-navy-700" : "text-slate-700"
-              }`}
-            >
-              <MapPin
-                size={13}
-                strokeWidth={2.25}
-                className={`mt-0.5 shrink-0 ${i === highlightedIndex ? "text-navy-600" : "text-slate-500"}`}
-              />
-              <span>{s.label}</span>
-            </li>
-          ))}
-        </ul>
+          {label}
+        </label>
+        {valid && (
+          <motion.span
+            initial={{ scale: 0.6, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            className="pointer-events-none absolute top-1/2 right-3.5 -translate-y-1/2 text-emerald-600 dark:text-emerald-400"
+            aria-hidden="true"
+          >
+            <Check size={15} strokeWidth={2.5} />
+          </motion.span>
+        )}
+      </motion.div>
+      {error && (
+        <p id={`${id}-error`} role="alert" className="px-1 text-xs text-red-600 dark:text-red-400">
+          {error}
+        </p>
       )}
+      <AnimatePresence>
+        {isOpen && suggestions.length > 0 && (
+          <motion.ul
+            id={listId}
+            role="listbox"
+            initial={{ opacity: 0, y: -4 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -4 }}
+            transition={quick}
+            className="absolute top-full left-0 z-30 mt-1.5 w-full overflow-hidden rounded-xl border border-line bg-surface shadow-[var(--shadow-pop)]"
+          >
+            {suggestions.map((s, i) => (
+              <li
+                key={`${s.label}-${i}`}
+                role="option"
+                aria-selected={i === highlighted}
+                onMouseDown={(e) => {
+                  e.preventDefault()
+                  select(s.label)
+                }}
+                onMouseEnter={() => setHighlighted(i)}
+                className={`flex cursor-pointer items-start gap-2.5 px-3.5 py-2.5 text-sm transition-colors ${
+                  i === highlighted ? "bg-accent-soft text-ink" : "text-ink-2"
+                }`}
+              >
+                <MapPin size={14} strokeWidth={2.25} className={`mt-0.5 shrink-0 ${i === highlighted ? "text-accent-600 dark:text-accent" : "text-ink-3"}`} />
+                <span className="leading-snug">{s.label}</span>
+              </li>
+            ))}
+          </motion.ul>
+        )}
+      </AnimatePresence>
     </div>
   )
 }

@@ -23,7 +23,7 @@ import {
   xForMinutes,
   yForRow,
 } from "./logSheetGeometry"
-import { computeDailyRecap } from "./recap"
+import { computeDailyRecap, type DailyRecap } from "./recap"
 
 const VIEW_WIDTH = 1010
 const VIEW_HEIGHT = 250
@@ -136,7 +136,7 @@ export function ELDLogSheet({ log, driver, trip, allLogs, dayIndex, highlightMin
   }, [stepPath])
 
   return (
-    <div className="eld-scroll w-full overflow-x-auto rounded-md border border-slate-300 bg-white p-4 shadow-sm print:w-auto print:overflow-visible print:break-inside-avoid print:border-0 print:p-0 print:shadow-none">
+    <div className="scroll-thin w-full overflow-x-auto rounded-xl border border-line bg-white p-4 text-slate-900 shadow-[var(--shadow-card)] dark:border-line-strong print:w-auto print:overflow-visible print:break-inside-avoid print:border-0 print:p-0 print:shadow-none">
       {/* Header — reproduces the paper form's own field layout (title +
           date, From/To, mileage + vehicle, carrier + terminal) as real,
           selectable HTML rather than baked into the SVG, so it stays crisp
@@ -148,7 +148,7 @@ export function ELDLogSheet({ log, driver, trip, allLogs, dayIndex, highlightMin
             <p className="text-xs text-slate-500">(24 hours)</p>
           </div>
           <div className="text-right">
-            <div className="flex items-baseline justify-end gap-1 tabular-nums text-sm font-semibold text-slate-900">
+            <div className="flex items-baseline justify-end gap-1 num text-sm font-semibold text-slate-900">
               <span>{month}</span>
               <span className="text-slate-500">/</span>
               <span>{day}</span>
@@ -163,14 +163,17 @@ export function ELDLogSheet({ log, driver, trip, allLogs, dayIndex, highlightMin
           </div>
         </div>
 
+        {/* The form's From/To are where THIS day started and ended — not the
+            trip's pickup and dropoff, which a multi-day log would repeat on
+            every page. The segments already carry both. */}
         <div className="mt-2 flex flex-wrap gap-x-8 gap-y-1 text-sm">
           <div className="flex items-baseline gap-1.5">
             <span className="text-xs font-semibold text-slate-500">From:</span>
-            <span className="font-medium text-slate-900">{trip.pickup_location}</span>
+            <span className="font-medium text-slate-900">{log.segments[0]?.location_label ?? trip.current_location}</span>
           </div>
           <div className="flex items-baseline gap-1.5">
             <span className="text-xs font-semibold text-slate-500">To:</span>
-            <span className="font-medium text-slate-900">{trip.dropoff_location}</span>
+            <span className="font-medium text-slate-900">{log.segments[log.segments.length - 1]?.location_label ?? trip.dropoff_location}</span>
           </div>
         </div>
 
@@ -182,7 +185,7 @@ export function ELDLogSheet({ log, driver, trip, allLogs, dayIndex, highlightMin
             </div>
             <div className="flex gap-6">
               <Field label="Total miles driving today" value={`${log.total_miles} mi`} />
-              <Field label="Total mileage today" value={`${log.total_mileage_to_date} mi`} />
+              <Field label="Trip mileage to date" value={`${log.total_mileage_to_date} mi`} />
             </div>
             <Field label="Truck/tractor and trailer no. (show each unit)" value={`${driver.truckTractorNumber} / ${driver.trailerNumbers}`} />
           </div>
@@ -198,6 +201,33 @@ export function ELDLogSheet({ log, driver, trip, allLogs, dayIndex, highlightMin
           must be precise, vector-rendered geometry, not an approximation:
           exact grid, an exact stepped line traced from real time intervals,
           not colored bars standing in for one. */}
+      {(log.record_type === "time_record" || log.exception_notes.length > 0) && (
+        <div className={`mt-3 rounded-lg border px-3 py-2.5 text-xs ${log.record_type === "time_record" ? "border-teal-300 bg-teal-50 text-teal-900" : "border-amber-300 bg-amber-50 text-amber-900"}`}>
+          {log.record_type === "time_record" && log.time_record && (
+            <div className="mb-1.5 flex flex-wrap gap-x-6 gap-y-1">
+              <span className="font-semibold">Short-haul time record (§395.1(e))</span>
+              <span>
+                Reported <span className="num font-medium">{log.time_record.report_time}</span>
+              </span>
+              <span>
+                Released <span className="num font-medium">{log.time_record.release_time}</span>
+              </span>
+              <span>
+                On duty <span className="num font-medium">{log.time_record.on_duty_hours.toFixed(2)} h</span>
+              </span>
+              <span>
+                Farthest from base <span className="num font-medium">{log.time_record.farthest_air_miles} air-mi</span>
+              </span>
+            </div>
+          )}
+          {log.exception_notes.map((note, i) => (
+            <p key={i} className="leading-snug">
+              {note}
+            </p>
+          ))}
+          {log.record_type === "time_record" && <p className="mt-1 text-[11px] opacity-80">The grid below is kept for review; the carrier retains the time record for 6 months in place of a RODS.</p>}
+        </div>
+      )}
       <div className="relative mt-3 min-w-[760px] print:min-w-0">
       <svg
         viewBox={`0 0 ${VIEW_WIDTH} ${VIEW_HEIGHT}`}
@@ -286,7 +316,7 @@ export function ELDLogSheet({ log, driver, trip, allLogs, dayIndex, highlightMin
         <line x1={GRID_X_START} y1={GRID_Y_START} x2={GRID_X_START} y2={GRID_Y_END} stroke="#0f172a" strokeWidth={1.4} />
         <line x1={GRID_X_END} y1={GRID_Y_START} x2={GRID_X_END} y2={GRID_Y_END} stroke="#0f172a" strokeWidth={1.4} />
 
-        <path ref={pathRef} d={stepPath} fill="none" className="stroke-navy-600" strokeWidth={2.25} strokeLinejoin="round" />
+        <path ref={pathRef} d={stepPath} fill="none" stroke="#1f2937" strokeWidth={2.25} strokeLinejoin="round" />
 
         {highlightMinutes != null && (
           <line
@@ -294,8 +324,8 @@ export function ELDLogSheet({ log, driver, trip, allLogs, dayIndex, highlightMin
             y1={HOUR_BAND_Y}
             x2={xForMinutes(highlightMinutes)}
             y2={GRID_Y_END}
-            stroke="#d97706"
-            strokeWidth={1.5}
+            stroke="var(--accent)"
+            strokeWidth={1.75}
             strokeDasharray="3 2"
           />
         )}
@@ -314,7 +344,7 @@ export function ELDLogSheet({ log, driver, trip, allLogs, dayIndex, highlightMin
             key={status}
             x={TOTALS_X_START}
             y={yForRow(status) + 4}
-            style={{ fontSize: 11, fontVariantNumeric: "tabular-nums" }}
+            style={{ fontSize: 11, fontVariantNumeric: "num" }}
             className="fill-slate-800"
           >
             {(log.totals[status] ?? 0).toFixed(2)}
@@ -325,7 +355,7 @@ export function ELDLogSheet({ log, driver, trip, allLogs, dayIndex, highlightMin
         <text
           x={TOTALS_X_START}
           y={GRID_Y_END + 16}
-          style={{ fontSize: 10, fontWeight: 700, fontVariantNumeric: "tabular-nums" }}
+          style={{ fontSize: 10, fontWeight: 700, fontVariantNumeric: "num" }}
           className="fill-slate-900"
         >
           {grandTotal.toFixed(2)}
@@ -405,7 +435,7 @@ export function ELDLogSheet({ log, driver, trip, allLogs, dayIndex, highlightMin
                 instead of as a deliberate, snappy response. */}
             <div
               key={hoveredIndex}
-              className="tooltip-pop relative w-52 rounded-md border border-slate-200 bg-white p-2.5 text-[11px] shadow-lg"
+              className="relative w-52 rounded-xl border border-line bg-surface p-2.5 text-[11px] text-ink shadow-[var(--shadow-pop)]"
             >
               <div className="flex items-center gap-2">
                 <span
@@ -415,24 +445,24 @@ export function ELDLogSheet({ log, driver, trip, allLogs, dayIndex, highlightMin
                 >
                   <Icon size={13} strokeWidth={2.25} color={color} />
                 </span>
-                <span className="font-semibold text-slate-900">{title}</span>
+                <span className="font-semibold text-ink">{title}</span>
               </div>
-              <div className="mt-1.5 tabular-nums text-slate-600">
+              <div className="num mt-1.5 text-ink-2">
                 {hoveredSeg.start_time} – {hoveredSeg.end_time} · {formatHHMMDuration(hoveredSeg.start_time, hoveredSeg.end_time)}
                 {hoveredSeg.status === "DRIVING" &&
                   ` · ${(hoveredSeg.odometer_end_miles - hoveredSeg.odometer_start_miles).toFixed(1)} mi`}
               </div>
-              <div className="mt-0.5 truncate text-slate-500" title={hoveredSeg.location_label}>
+              <div className="mt-0.5 truncate text-ink-3" title={hoveredSeg.location_label}>
                 {hoveredSeg.location_label}
               </div>
               {reason && (
-                <div className="mt-1.5 border-t border-slate-100 pt-1.5 text-[10px] leading-snug text-slate-500">
+                <div className="mt-1.5 border-t border-line pt-1.5 text-[10px] leading-snug text-ink-3">
                   {reason}
                 </div>
               )}
               <div
                 aria-hidden="true"
-                className="absolute left-1/2 top-full h-2 w-2 -translate-x-1/2 -translate-y-1 rotate-45 border-b border-r border-slate-200 bg-white"
+                className="absolute left-1/2 top-full h-2 w-2 -translate-x-1/2 -translate-y-1 rotate-45 border-b border-r border-line bg-surface"
               />
             </div>
           </div>
@@ -449,7 +479,7 @@ export function ELDLogSheet({ log, driver, trip, allLogs, dayIndex, highlightMin
           <ul className="mt-1 grid grid-cols-1 gap-x-8 gap-y-1 text-xs text-slate-700 sm:grid-cols-2 lg:grid-cols-3">
             {displayRemarks.map((remark, i) => (
               <li key={i} className="break-words border-b border-dotted border-slate-300 py-0.5">
-                <span className="tabular-nums font-medium">{remark.time}</span>
+                <span className="num font-medium">{remark.time}</span>
                 {" — "}
                 {remark.location_label}
                 {remark.notes.length > 0 && <span className="text-slate-500"> ({remark.notes.join(", ")})</span>}
@@ -496,27 +526,24 @@ export function ELDLogSheet({ log, driver, trip, allLogs, dayIndex, highlightMin
           <Field label="On-duty hours today (lines 3 &amp; 4)" value={`${recap.onDutyHoursToday.toFixed(2)} hr`} />
           <RecapCycleBlock
             title="70-hour / 8-day drivers"
-            a={trip.cycle_schedule === "70/8" ? `${recap.cycleHoursUsed.toFixed(2)} hr` : "—"}
-            b={trip.cycle_schedule === "70/8" ? `${recap.cycleHoursAvailableTomorrow.toFixed(2)} hr` : "—"}
-            c={trip.cycle_schedule === "70/8" ? `${recap.onDutyHoursLastWindow.toFixed(2)} hr` : "—"}
+            days={8}
+            recap={trip.cycle_schedule === "70/8" ? recap : null}
           />
           <RecapCycleBlock
             title="60-hour / 7-day drivers"
-            a={trip.cycle_schedule === "60/7" ? `${recap.cycleHoursUsed.toFixed(2)} hr` : "—"}
-            b={trip.cycle_schedule === "60/7" ? `${recap.cycleHoursAvailableTomorrow.toFixed(2)} hr` : "—"}
-            c={trip.cycle_schedule === "60/7" ? `${recap.onDutyHoursLastWindow.toFixed(2)} hr` : "—"}
+            days={7}
+            recap={trip.cycle_schedule === "60/7" ? recap : null}
           />
           {trip.cycle_schedule === "custom" && (
             <RecapCycleBlock
               title={`${trip.cycle_cap_hours}-hour / ${trip.cycle_cap_days}-day custom cycle`}
-              a={`${recap.cycleHoursUsed.toFixed(2)} hr`}
-              b={`${recap.cycleHoursAvailableTomorrow.toFixed(2)} hr`}
-              c={`${recap.onDutyHoursLastWindow.toFixed(2)} hr`}
+              days={trip.cycle_cap_days}
+              recap={recap}
             />
           )}
         </div>
         <p className="mt-2 text-[10px] text-slate-500">
-          *If you took 34 consecutive hours off duty you have 60/70 hours available.
+          *If you took {trip.restart_hours} consecutive hours off duty you have {trip.cycle_cap_hours} hours available.
         </p>
       </div>
     </div>
@@ -532,22 +559,28 @@ function Field({ label, value }: { label: string; value: string }) {
   )
 }
 
-function RecapCycleBlock({ title, a, b, c }: { title: string; a: string; b: string; c: string }) {
+/** One schedule's block of the Recap. The paper form asks, for an N-day
+ * schedule: A = on duty in the last N-1 days including today (what still
+ * counts tomorrow), B = cap minus A = available tomorrow, C = on duty in
+ * the last N days including today (the window as it stands tonight).
+ * `recap` is null for the block that doesn't apply to this trip. */
+function RecapCycleBlock({ title, days, recap }: { title: string; days: number; recap: DailyRecap | null }) {
+  const fmt = (n: number | undefined) => (recap && n != null ? `${n.toFixed(2)} hr` : "—")
   return (
     <div>
       <p className="text-[10px] font-semibold text-slate-600">{title}</p>
       <dl className="mt-1 grid grid-cols-3 gap-1.5">
         <div>
-          <dt className="text-[9px] leading-tight text-slate-500">A. On duty last 7 days incl. today</dt>
-          <dd className="tabular-nums font-medium text-slate-900">{a}</dd>
+          <dt className="text-[9px] leading-tight text-slate-500">A. On duty last {Math.max(days - 1, 1)} days incl. today</dt>
+          <dd className="num font-medium text-slate-900">{fmt(recap?.onDutyCountingTomorrow)}</dd>
         </div>
         <div>
           <dt className="text-[9px] leading-tight text-slate-500">B. Available tomorrow*</dt>
-          <dd className="tabular-nums font-medium text-slate-900">{b}</dd>
+          <dd className="num font-medium text-slate-900">{fmt(recap?.cycleHoursAvailableTomorrow)}</dd>
         </div>
         <div>
-          <dt className="text-[9px] leading-tight text-slate-500">C. On duty last 5 days</dt>
-          <dd className="tabular-nums font-medium text-slate-900">{c}</dd>
+          <dt className="text-[9px] leading-tight text-slate-500">C. On duty last {days} days incl. today</dt>
+          <dd className="num font-medium text-slate-900">{fmt(recap?.onDutyLastWindow)}</dd>
         </div>
       </dl>
     </div>

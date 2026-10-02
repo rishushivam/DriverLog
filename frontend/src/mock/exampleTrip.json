@@ -1,0 +1,471 @@
+{
+ "id": 0,
+ "current_location": "Chicago, IL",
+ "pickup_location": "Nashville, TN",
+ "dropoff_location": "Atlanta, GA",
+ "current_cycle_used_hours": 38.0,
+ "cycle_schedule": "70/8",
+ "cycle_cap_hours": 70.0,
+ "cycle_cap_days": 8,
+ "num_drivers": 1,
+ "co_driver_name": "",
+ "co_driver_current_cycle_used_hours": null,
+ "restart_hours": 34.0,
+ "driving_hours_today": 0.0,
+ "on_duty_hours_today": 0.0,
+ "route": {
+  "distance_miles": 722.0,
+  "duration_hours": 13.13,
+  "trip_span_hours": 25.63,
+  "current_location_coords": [
+   -87.6298,
+   41.8781
+  ],
+  "pickup_location_coords": [
+   -86.7816,
+   36.1627
+  ],
+  "dropoff_location_coords": [
+   -84.388,
+   33.749
+  ],
+  "geometry": {
+   "to_pickup": [
+    [
+     -87.6298,
+     41.8781
+    ],
+    [
+     -87.4685,
+     41.4018
+    ],
+    [
+     -87.3134,
+     40.9255
+    ],
+    [
+     -87.1703,
+     40.4493
+    ],
+    [
+     -87.044,
+     39.973
+    ],
+    [
+     -86.9383,
+     39.4967
+    ],
+    [
+     -86.8557,
+     39.0204
+    ],
+    [
+     -86.7969,
+     38.5441
+    ],
+    [
+     -86.7612,
+     38.0678
+    ],
+    [
+     -86.7462,
+     37.5915
+    ],
+    [
+     -86.748,
+     37.1153
+    ],
+    [
+     -86.7617,
+     36.639
+    ],
+    [
+     -86.7816,
+     36.1627
+    ]
+   ],
+   "to_dropoff": [
+    [
+     -86.7816,
+     36.1627
+    ],
+    [
+     -86.4915,
+     35.9616
+    ],
+    [
+     -86.2077,
+     35.7604
+    ],
+    [
+     -85.9357,
+     35.5593
+    ],
+    [
+     -85.6806,
+     35.3581
+    ],
+    [
+     -85.4462,
+     35.157
+    ],
+    [
+     -85.2348,
+     34.9558
+    ],
+    [
+     -85.0473,
+     34.7547
+    ],
+    [
+     -84.8828,
+     34.5536
+    ],
+    [
+     -84.7389,
+     34.3524
+    ],
+    [
+     -84.6119,
+     34.1513
+    ],
+    [
+     -84.4969,
+     33.9501
+    ],
+    [
+     -84.388,
+     33.749
+    ]
+   ],
+   "to_reporting": null
+  },
+  "stops": [
+   {
+    "coords": [
+     -87.6298,
+     41.8781
+    ],
+    "label": "Chicago, IL",
+    "type": "current"
+   },
+   {
+    "coords": [
+     -86.7816,
+     36.1627
+    ],
+    "label": "Mandatory 30-minute break",
+    "type": "break"
+   },
+   {
+    "coords": [
+     -86.7816,
+     36.1627
+    ],
+    "label": "Nashville, TN",
+    "type": "pickup"
+   },
+   {
+    "coords": [
+     -85.1019880336241,
+     34.81335473899628
+    ],
+    "label": "10-hour rest",
+    "type": "rest"
+   },
+   {
+    "coords": [
+     -84.388,
+     33.749
+    ],
+    "label": "Atlanta, GA",
+    "type": "dropoff"
+   }
+  ],
+  "work_reporting_coords": null
+ },
+ "logs": [
+  {
+   "date": "2026-10-02",
+   "total_miles": 605.0,
+   "segments": [
+    {
+     "status": "OFF_DUTY",
+     "start_time": "00:00",
+     "end_time": "06:30",
+     "location_label": "Chicago, IL",
+     "stop_type": null,
+     "remark": null,
+     "odometer_start_miles": 0.0,
+     "odometer_end_miles": 0.0
+    },
+    {
+     "status": "DRIVING",
+     "start_time": "06:30",
+     "end_time": "14:30",
+     "location_label": "Chicago, IL",
+     "stop_type": null,
+     "remark": null,
+     "odometer_start_miles": 0.0,
+     "odometer_end_miles": 440.0
+    },
+    {
+     "status": "ON_DUTY_NOT_DRIVING",
+     "start_time": "14:30",
+     "end_time": "15:00",
+     "location_label": "En route, mile 440",
+     "stop_type": "break",
+     "remark": "Mandatory 30-minute break",
+     "odometer_start_miles": 440.0,
+     "odometer_end_miles": 440.0
+    },
+    {
+     "status": "DRIVING",
+     "start_time": "15:00",
+     "end_time": "15:34",
+     "location_label": "En route, mile 440",
+     "stop_type": null,
+     "remark": null,
+     "odometer_start_miles": 440.0,
+     "odometer_end_miles": 472.0
+    },
+    {
+     "status": "ON_DUTY_NOT_DRIVING",
+     "start_time": "15:34",
+     "end_time": "16:34",
+     "location_label": "Nashville, TN",
+     "stop_type": "pickup",
+     "remark": "Picking up load",
+     "odometer_start_miles": 472.0,
+     "odometer_end_miles": 472.0
+    },
+    {
+     "status": "DRIVING",
+     "start_time": "16:34",
+     "end_time": "19:00",
+     "location_label": "Nashville, TN",
+     "stop_type": null,
+     "remark": null,
+     "odometer_start_miles": 472.0,
+     "odometer_end_miles": 605.0
+    },
+    {
+     "status": "SLEEPER_BERTH",
+     "start_time": "19:00",
+     "end_time": "24:00",
+     "location_label": "En route, mile 605",
+     "stop_type": "rest",
+     "remark": "10-hour rest",
+     "odometer_start_miles": 605.0,
+     "odometer_end_miles": 605.0
+    }
+   ],
+   "remarks": [
+    {
+     "time": "06:30",
+     "location_label": "Chicago, IL",
+     "note": null
+    },
+    {
+     "time": "14:30",
+     "location_label": "En route, mile 440",
+     "note": "Mandatory 30-minute break"
+    },
+    {
+     "time": "15:00",
+     "location_label": "En route, mile 440",
+     "note": null
+    },
+    {
+     "time": "15:34",
+     "location_label": "Nashville, TN",
+     "note": "Picking up load"
+    },
+    {
+     "time": "16:34",
+     "location_label": "Nashville, TN",
+     "note": null
+    },
+    {
+     "time": "19:00",
+     "location_label": "En route, mile 605",
+     "note": "10-hour rest"
+    }
+   ],
+   "totals": {
+    "OFF_DUTY": 6.5,
+    "SLEEPER_BERTH": 5.0,
+    "DRIVING": 11.0,
+    "ON_DUTY_NOT_DRIVING": 1.5
+   },
+   "total_mileage_to_date": 605.0,
+   "cycle_hours_used_end_of_day": 50.5,
+   "cycle_hours_counting_tomorrow": 50.5,
+   "record_type": "rods",
+   "time_record": null,
+   "exception_notes": []
+  },
+  {
+   "date": "2026-10-03",
+   "total_miles": 117.0,
+   "segments": [
+    {
+     "status": "SLEEPER_BERTH",
+     "start_time": "00:00",
+     "end_time": "05:00",
+     "location_label": "En route, mile 605",
+     "stop_type": "rest",
+     "remark": null,
+     "odometer_start_miles": 605.0,
+     "odometer_end_miles": 605.0
+    },
+    {
+     "status": "DRIVING",
+     "start_time": "05:00",
+     "end_time": "07:07",
+     "location_label": "En route, mile 605",
+     "stop_type": null,
+     "remark": null,
+     "odometer_start_miles": 605.0,
+     "odometer_end_miles": 722.0
+    },
+    {
+     "status": "ON_DUTY_NOT_DRIVING",
+     "start_time": "07:07",
+     "end_time": "08:07",
+     "location_label": "Atlanta, GA",
+     "stop_type": "dropoff",
+     "remark": "Delivering load",
+     "odometer_start_miles": 722.0,
+     "odometer_end_miles": 722.0
+    },
+    {
+     "status": "OFF_DUTY",
+     "start_time": "08:07",
+     "end_time": "24:00",
+     "location_label": "Atlanta, GA",
+     "stop_type": null,
+     "remark": null,
+     "odometer_start_miles": 722.0,
+     "odometer_end_miles": 722.0
+    }
+   ],
+   "remarks": [
+    {
+     "time": "05:00",
+     "location_label": "En route, mile 605",
+     "note": null
+    },
+    {
+     "time": "07:07",
+     "location_label": "Atlanta, GA",
+     "note": "Delivering load"
+    }
+   ],
+   "totals": {
+    "OFF_DUTY": 15.87,
+    "SLEEPER_BERTH": 5.0,
+    "DRIVING": 2.13,
+    "ON_DUTY_NOT_DRIVING": 1.0
+   },
+   "total_mileage_to_date": 722.0,
+   "cycle_hours_used_end_of_day": 53.63,
+   "cycle_hours_counting_tomorrow": 53.63,
+   "record_type": "rods",
+   "time_record": null,
+   "exception_notes": []
+  }
+ ],
+ "co_driver_logs": null,
+ "segments": [
+  {
+   "status": "DRIVING",
+   "start_datetime": "2026-10-02T06:30:00",
+   "end_datetime": "2026-10-02T14:30:00",
+   "location_label": "Chicago, IL",
+   "odometer_start_miles": 0.0,
+   "odometer_end_miles": 440.0,
+   "remark": null,
+   "stop_type": null
+  },
+  {
+   "status": "ON_DUTY_NOT_DRIVING",
+   "start_datetime": "2026-10-02T14:30:00",
+   "end_datetime": "2026-10-02T15:00:00",
+   "location_label": "En route, mile 440",
+   "odometer_start_miles": 440.0,
+   "odometer_end_miles": 440.0,
+   "remark": "Mandatory 30-minute break",
+   "stop_type": "break"
+  },
+  {
+   "status": "DRIVING",
+   "start_datetime": "2026-10-02T15:00:00",
+   "end_datetime": "2026-10-02T15:34:54.545455",
+   "location_label": "En route, mile 440",
+   "odometer_start_miles": 440.0,
+   "odometer_end_miles": 472.0,
+   "remark": null,
+   "stop_type": null
+  },
+  {
+   "status": "ON_DUTY_NOT_DRIVING",
+   "start_datetime": "2026-10-02T15:34:54.545455",
+   "end_datetime": "2026-10-02T16:34:54.545455",
+   "location_label": "Nashville, TN",
+   "odometer_start_miles": 472.0,
+   "odometer_end_miles": 472.0,
+   "remark": "Picking up load",
+   "stop_type": "pickup"
+  },
+  {
+   "status": "DRIVING",
+   "start_datetime": "2026-10-02T16:34:54.545455",
+   "end_datetime": "2026-10-02T19:00:00",
+   "location_label": "Nashville, TN",
+   "odometer_start_miles": 472.0,
+   "odometer_end_miles": 605.0,
+   "remark": null,
+   "stop_type": null
+  },
+  {
+   "status": "SLEEPER_BERTH",
+   "start_datetime": "2026-10-02T19:00:00",
+   "end_datetime": "2026-10-03T05:00:00",
+   "location_label": "En route, mile 605",
+   "odometer_start_miles": 605.0,
+   "odometer_end_miles": 605.0,
+   "remark": "10-hour rest",
+   "stop_type": "rest"
+  },
+  {
+   "status": "DRIVING",
+   "start_datetime": "2026-10-03T05:00:00",
+   "end_datetime": "2026-10-03T07:07:38.181818",
+   "location_label": "En route, mile 605",
+   "odometer_start_miles": 605.0,
+   "odometer_end_miles": 722.0,
+   "remark": null,
+   "stop_type": null
+  },
+  {
+   "status": "ON_DUTY_NOT_DRIVING",
+   "start_datetime": "2026-10-03T07:07:38.181818",
+   "end_datetime": "2026-10-03T08:07:38.181818",
+   "location_label": "Atlanta, GA",
+   "odometer_start_miles": 722.0,
+   "odometer_end_miles": 722.0,
+   "remark": "Delivering load",
+   "stop_type": "dropoff"
+  }
+ ],
+ "created_at": "2026-10-02T06:30:00",
+ "operating_mode": "standard",
+ "work_reporting_location": "",
+ "return_to_reporting_location": false,
+ "use_16_hour_exception": false,
+ "days_past_14th_hour_this_week": 0,
+ "exception_applied": false,
+ "exception_reasons": [],
+ "farthest_air_miles": null
+}

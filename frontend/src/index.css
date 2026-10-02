@@ -1,115 +1,199 @@
 @import "tailwindcss";
 
+@custom-variant dark (&:where(.dark, .dark *));
+
+/* ------------------------------------------------------------------ */
+/* Tokens. One accent (amber) carries every primary action and the     */
+/* active state of every control; the neutral surface scale does the   */
+/* rest. Status colours live in config/stopTypes.ts and mean one thing */
+/* each — they are never decoration.                                    */
+/* ------------------------------------------------------------------ */
 @theme {
-  --color-navy-50: #eef1f6;
-  --color-navy-200: #c3ceda;
-  --color-navy-500: #2f4a75;
-  --color-navy-600: #1b2a47;
-  --color-navy-700: #12203a;
-  --color-navy-900: #0a1220;
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+
+  --color-accent-50: #fff8eb;
+  --color-accent-100: #feefc7;
+  --color-accent-200: #fddc8a;
+  --color-accent-300: #fbc24d;
+  --color-accent-400: #f5a623;
+  --color-accent-500: #e08a0b;
+  --color-accent-600: #b86a06;
+  --color-accent-700: #8f4f08;
+  --color-accent-800: #6b3b0b;
+  --color-accent-900: #4a290a;
+
+  --color-canvas: var(--canvas);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-surface-3: var(--surface-3);
+  --color-line: var(--line);
+  --color-line-strong: var(--line-strong);
+  --color-ink: var(--ink);
+  --color-ink-2: var(--ink-2);
+  --color-ink-3: var(--ink-3);
+  --color-accent: var(--accent);
+  --color-accent-ink: var(--accent-ink);
+  --color-accent-soft: var(--accent-soft);
+
+  --radius-xl: 0.875rem;
+  --radius-2xl: 1.125rem;
+
+  --shadow-card: 0 1px 2px rgb(16 24 40 / 0.05), 0 6px 18px -8px rgb(16 24 40 / 0.14);
+  --shadow-pop: 0 12px 32px -12px rgb(16 24 40 / 0.28), 0 2px 6px -2px rgb(16 24 40 / 0.08);
+}
+
+:root {
+  --canvas: #f6f5f2;
+  --surface: #ffffff;
+  --surface-2: #faf9f6;
+  --surface-3: #f0eee9;
+  --line: #e6e3dc;
+  --line-strong: #cfcbc1;
+  --ink: #16181d;
+  --ink-2: #4b5160;
+  --ink-3: #7a8191;
+  --accent: #d97b06;
+  --accent-ink: #1b1104;
+  --accent-soft: #fff1d6;
+  color-scheme: light;
+}
+
+.dark {
+  --canvas: #0f1115;
+  --surface: #171a20;
+  --surface-2: #1c2027;
+  --surface-3: #232833;
+  --line: #2a2f39;
+  --line-strong: #3b414e;
+  --ink: #f2f3f5;
+  --ink-2: #b4bac6;
+  --ink-3: #7f8797;
+  --accent: #f5a623;
+  --accent-ink: #1b1104;
+  --accent-soft: #3a2a0f;
+  color-scheme: dark;
+}
+
+html {
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+body {
+  background: var(--canvas);
+  color: var(--ink);
 }
 
 ::selection {
-  background: var(--color-navy-600);
-  color: white;
+  background: var(--accent);
+  color: var(--accent-ink);
 }
 
-/* A faint ruled/graph-paper watermark for the pre-submission empty state —
-   the grid armature that runs through the log sheet is present from the
-   first viewport, not introduced only once there's data to show. */
-.ruled-grid-watermark {
-  background-image:
-    repeating-linear-gradient(to bottom, transparent, transparent 23px, var(--color-slate-200) 23px, var(--color-slate-200) 24px),
-    repeating-linear-gradient(to right, transparent, transparent 31px, var(--color-slate-200) 31px, var(--color-slate-200) 32px);
-  background-position: center;
+/* Figures are measurements: mono, tabular. */
+.num {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.01em;
 }
 
-/* The one authored entrance moment: results settle in rather than pop. */
-@keyframes reveal-rise {
-  from {
-    opacity: 0;
-    transform: translateY(8px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
+/* Thin themed scrollbars on every scroll region we own. */
+.scroll-thin {
+  scrollbar-width: thin;
+  scrollbar-color: var(--line-strong) transparent;
+}
+.scroll-thin::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+.scroll-thin::-webkit-scrollbar-thumb {
+  background: var(--line-strong);
+  border-radius: 9999px;
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+.scroll-thin::-webkit-scrollbar-track {
+  background: transparent;
 }
 
-.animate-reveal {
-  animation: reveal-rise 420ms cubic-bezier(0.16, 1, 0.3, 1) both;
+/* Focus ring language shared by every control, including SVG hit areas. */
+.focus-ring {
+  outline: none;
 }
-
-@media (prefers-reduced-motion: reduce) {
-  .animate-reveal {
-    animation: none;
-  }
+.focus-ring:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
 }
-
-/* The log sheet's per-segment hover card — a quick, deliberate pop rather
-   than an instant snap-in, replayed on every segment change via a `key`
-   remount in ELDLogSheet.tsx. Positioning (centering + offset above the
-   row) is handled by the card's own parent via inline `transform`, so this
-   scale animation never fights that with a second `transform` value on the
-   same element. */
-@keyframes tooltip-pop {
-  from {
-    opacity: 0;
-    transform: scale(0.92) translateY(3px);
-  }
-  to {
-    opacity: 1;
-    transform: scale(1) translateY(0);
-  }
-}
-
-.tooltip-pop {
-  transform-origin: bottom center;
-  animation: tooltip-pop 150ms cubic-bezier(0.16, 1, 0.3, 1) both;
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .tooltip-pop {
-    animation: none;
-  }
-}
-
-/* The log sheet's per-segment SVG hit region is `role="button"` but isn't a
-   real <button>, so it ships the browser's raw default focus outline (a
-   thick UA-colored ring) instead of the navy focus language every real
-   control on this page uses (`focus-visible:ring-2 focus-visible:ring-
-   navy-500/40`). SVG doesn't take Tailwind's ring utilities, so it's themed
-   directly here — same idea, same color, different property. */
 .log-segment-hit {
   outline: none;
 }
 .log-segment-hit:focus-visible {
-  outline: 2px solid var(--color-navy-500);
+  outline: 2px solid var(--accent);
   outline-offset: -2px;
 }
 
-/* Thin, wide scrollbar for the horizontally-scrolling log sheet — the parts
-   we didn't draw still carry the design. */
-.eld-scroll {
-  scrollbar-width: thin;
-  scrollbar-color: var(--color-navy-200) transparent;
-}
-.eld-scroll::-webkit-scrollbar {
-  height: 8px;
-}
-.eld-scroll::-webkit-scrollbar-track {
+/* Range input: themed track + thumb (both engines). */
+input[type="range"].cycle-range {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 100%;
+  height: 24px;
   background: transparent;
 }
-.eld-scroll::-webkit-scrollbar-thumb {
-  background-color: var(--color-navy-200);
+input[type="range"].cycle-range::-webkit-slider-runnable-track {
+  height: 6px;
+  border-radius: 9999px;
+  background: linear-gradient(to right, var(--accent) 0 var(--fill, 0%), var(--line) var(--fill, 0%) 100%);
+}
+input[type="range"].cycle-range::-moz-range-track {
+  height: 6px;
+  border-radius: 9999px;
+  background: var(--line);
+}
+input[type="range"].cycle-range::-moz-range-progress {
+  height: 6px;
+  border-radius: 9999px;
+  background: var(--accent);
+}
+input[type="range"].cycle-range::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 18px;
+  height: 18px;
+  margin-top: -6px;
+  border-radius: 9999px;
+  background: var(--surface);
+  border: 2px solid var(--accent);
+  box-shadow: 0 1px 3px rgb(0 0 0 / 0.25);
+  transition: transform 120ms ease-out;
+}
+input[type="range"].cycle-range::-moz-range-thumb {
+  width: 18px;
+  height: 18px;
+  border-radius: 9999px;
+  background: var(--surface);
+  border: 2px solid var(--accent);
+  box-shadow: 0 1px 3px rgb(0 0 0 / 0.25);
+}
+input[type="range"].cycle-range:active::-webkit-slider-thumb {
+  transform: scale(1.12);
+}
+input[type="range"].cycle-range:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 4px;
   border-radius: 9999px;
 }
 
-/* Map stop markers pop in with a per-stop stagger (see RouteMap.tsx) rather
-   than appearing all at once. `--marker-scale` is each marker's own active/
-   inactive target (RouteMap re-creates the element on every state change,
-   so the entrance animation and the active-state scale share one variable
-   rather than the animation's own `to` fighting a separate inline value). */
+/* Floating label: label sits inside the field until it has content/focus. */
+.float-field input:not(:placeholder-shown) + label,
+.float-field input:focus + label,
+.float-field select + label,
+.float-field.has-value label {
+  transform: translateY(-0.55rem) scale(0.82);
+  color: var(--ink-3);
+}
+
+/* Map marker entrance (RouteMap.tsx). */
 @keyframes marker-pop {
   from {
     opacity: 0;
@@ -120,71 +204,70 @@
     transform: scale(var(--marker-scale, 1));
   }
 }
-
 .marker-pop {
   animation: marker-pop 320ms cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 
-@media (prefers-reduced-motion: reduce) {
-  .marker-pop {
-    animation: none;
-    transform: scale(var(--marker-scale, 1));
+/* Skeleton shimmer. */
+@keyframes shimmer {
+  from {
+    background-position: -200% 0;
+  }
+  to {
+    background-position: 200% 0;
   }
 }
-
-/* View Transitions: a quick, deliberate cross-fade for tab switches (Route
-   Map <-> Daily Logs, day-to-day within a trip's logs) instead of the
-   browser's slower default, and switched off entirely under reduced motion. */
-::view-transition-old(root),
-::view-transition-new(root) {
-  animation-duration: 200ms;
-  animation-timing-function: cubic-bezier(0.16, 1, 0.3, 1);
+.skeleton {
+  background: linear-gradient(90deg, var(--surface-3) 25%, var(--line) 50%, var(--surface-3) 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.4s linear infinite;
+  border-radius: 6px;
 }
 
-@media (prefers-reduced-motion: reduce) {
-  ::view-transition-group(*),
-  ::view-transition-old(*),
-  ::view-transition-new(*) {
-    animation: none !important;
-  }
+/* Leaflet popups inherit the theme. */
+.leaflet-popup-content-wrapper,
+.leaflet-popup-tip {
+  background: var(--surface);
+  color: var(--ink);
+  box-shadow: var(--shadow-pop);
+}
+.leaflet-container {
+  font-family: var(--font-sans);
+  background: var(--surface-3);
+}
+/* OSM tiles are light-only; in dark mode they are inverted and desaturated
+   so the route line and markers keep their meaning against a dim ground. */
+.tiles-dark {
+  filter: invert(1) hue-rotate(180deg) brightness(0.82) contrast(0.92) saturate(0.6);
+}
+.dark .leaflet-control-zoom a {
+  background: var(--surface);
+  color: var(--ink);
+  border-color: var(--line);
+}
+.dark .leaflet-control-attribution {
+  background: rgb(23 26 32 / 0.8);
+  color: var(--ink-3);
 }
 
-/* Print: an explicit, deterministic document layout rather than "hide
-   everything and hope the flow reformats." Every non-log section carries
-   its own `print:hidden` (App.tsx, TripWorkspace.tsx) instead of a single
-   global visibility flip, so there is never a `position: absolute`
-   fighting some ancestor's transform for a containing block — the classic
-   cause of a mysteriously blank leading page. Page geometry is explicit
-   too: one full page per calendar day, sized to the page itself, not to
-   whatever the screen's responsive width happened to be. */
-@page {
-  size: letter portrait;
-  margin: 0.4in;
-}
-
+/* Print: only the log sheets, one per page. */
 @media print {
-  html,
   body {
     background: white;
   }
-
-  /* Each day's log is a complete, self-contained document: never split
-     across a page boundary, and never sharing a page with the next day's. */
   .eld-print-page {
+    break-after: page;
     break-inside: avoid;
-    page-break-inside: avoid;
+    padding: 0.4in;
   }
-  .eld-print-page + .eld-print-page {
-    break-before: page;
-    page-break-before: always;
+  .eld-print-page:last-child {
+    break-after: auto;
   }
+}
 
-  /* The entrance animation's fill-mode leaves a `transform` on this
-     ancestor after it finishes, which would otherwise hijack any
-     absolutely- or fixed-positioned descendant's containing block during
-     print layout. Print never sees the animation anyway. */
-  .animate-reveal {
-    animation: none !important;
-    transform: none !important;
+@media (prefers-reduced-motion: reduce) {
+  .marker-pop,
+  .skeleton {
+    animation: none;
   }
 }

@@ -75,6 +75,9 @@ class DailyLog:
     totals: Dict[str, float]
     total_mileage_to_date: float = 0.0
     cycle_hours_used_end_of_day: float = 0.0
+    # On-duty hours in the last (N-1) days including today — the part of
+    # today's rolling window that will still count tomorrow (Recap line A).
+    cycle_hours_counting_tomorrow: float = 0.0
 
     def to_dict(self) -> dict:
         return {
@@ -85,4 +88,5 @@ class DailyLog:
             "totals": self.totals,
             "total_mileage_to_date": self.total_mileage_to_date,
             "cycle_hours_used_end_of_day": self.cycle_hours_used_end_of_day,
+            "cycle_hours_counting_tomorrow": self.cycle_hours_counting_tomorrow,
         }

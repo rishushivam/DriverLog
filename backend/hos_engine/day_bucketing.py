@@ -7,8 +7,9 @@ commonly fix logs to a single reference time (e.g. home-terminal time)
 rather than shifting per state line, and it sidesteps DST entirely.
 """
 
-from datetime import datetime, timedelta
-from typing import List
+from collections import defaultdict
+from datetime import date as _date, datetime, timedelta
+from typing import Dict, List, Tuple
 
 from .types import ALL_STATUSES, DRIVING, OFF_DUTY, ON_DUTY_NOT_DRIVING, DailyLog, Segment
 
@@ -70,7 +71,62 @@ def _fmt_hhmm(dt: datetime, day_end: datetime) -> str:
     return dt.strftime("%H:%M")
 
 
-def build_daily_logs(segments: List[Segment], starting_cycle_hours: float = 0.0) -> List[DailyLog]:
+def _compute_rolling_cycle_at_day_end(
+    all_pieces: List[Segment], starting_cycle_hours: float, cycle_cap_days: int, restart_hours: float
+) -> Dict[_date, Tuple[float, float]]:
+    """The true rolling 60/70-hour window value as of the END of each
+    calendar day the trip touches — replayed from the final, already-
+    simulated piece list using the exact same formula and pre-trip-lump-
+    on-one-notional-day convention as the engine's own
+    `_SimState.rolling_cycle_hours`/`_DriverClock.rolling_cycle_hours` (see
+    engine.py), so the Recap section can never disagree with the engine's
+    own restart decisions. Any run of `restart_hours` (34) consecutive
+    hours off duty / in the sleeper berth clears the whole rolling history
+    the instant it is reached (§395.3(c)) — whether that run is an explicit
+    restart stop or a team driver simply resting through a partner's
+    stints, which is how a capped co-driver recovers without any stop."""
+    if not all_pieces:
+        return {}
+    pretrip_date = all_pieces[0].start_datetime.date()  # same placement as the engines
+    pretrip_hours = starting_cycle_hours
+    daily_on_duty_hours: Dict[_date, float] = defaultdict(float)
+
+    def rolling_as_of(day: _date, days: int) -> float:
+        window_start = day - timedelta(days=days - 1)
+        total = pretrip_hours if pretrip_date >= window_start else 0.0
+        total += sum(h for d, h in daily_on_duty_hours.items() if d >= window_start)
+        return total
+
+    # Per day: (full N-day window total, the (N-1)-day total). The second
+    # is what the paper log's Recap line A asks for — the hours that will
+    # still be inside the window TOMORROW, so line B ("available
+    # tomorrow") is simply cap minus it.
+    result: Dict[_date, Tuple[float, float]] = {}
+    off_run_hours = 0.0
+    run_already_reset = False
+    for piece in all_pieces:
+        day = piece.start_datetime.date()
+        hours = (piece.end_datetime - piece.start_datetime).total_seconds() / 3600.0
+        if piece.status in (DRIVING, ON_DUTY_NOT_DRIVING):
+            daily_on_duty_hours[day] += hours
+            off_run_hours, run_already_reset = 0.0, False
+        else:
+            off_run_hours += hours
+            if not run_already_reset and off_run_hours >= restart_hours - 1e-6:
+                pretrip_hours = 0.0
+                daily_on_duty_hours = defaultdict(float)
+                run_already_reset = True
+        result[day] = (rolling_as_of(day, cycle_cap_days), rolling_as_of(day, max(cycle_cap_days - 1, 1)))
+    return result
+
+
+def build_daily_logs(
+    segments: List[Segment],
+    starting_cycle_hours: float = 0.0,
+    cycle_cap_days: int = 8,
+    max_cycle_hours: float = 70.0,
+    restart_hours: float = 34.0,
+) -> List[DailyLog]:
     if not segments:
         return []
 
@@ -78,18 +134,14 @@ def build_daily_logs(segments: List[Segment], starting_cycle_hours: float = 0.0)
     for seg in segments:
         all_pieces.extend(_split_at_midnights(seg))
 
+    rolling_cycle_at_day_end = _compute_rolling_cycle_at_day_end(all_pieces, starting_cycle_hours, cycle_cap_days, restart_hours)
+
     pieces_by_date: dict = {}
     for piece in all_pieces:
         pieces_by_date.setdefault(piece.start_datetime.date(), []).append(piece)
 
     logs: List[DailyLog] = []
     mileage_to_date = 0.0
-    # Mirrors the engine's own cycle_hrs_used bookkeeping exactly (sum
-    # on-duty/driving hours, zero it out the moment a 34-hour restart
-    # completes) rather than re-deriving HOS rules — this is a pure replay
-    # of decisions the engine already made, not a second implementation of
-    # them, so it can never disagree with what actually happened.
-    cycle_hours_used = starting_cycle_hours
     for date_key in sorted(pieces_by_date.keys()):
         pieces = pieces_by_date[date_key]
         day_start = datetime.combine(date_key, _MIDNIGHT)
@@ -145,12 +197,6 @@ def build_daily_logs(segments: List[Segment], starting_cycle_hours: float = 0.0)
         day_distance = round(sum(p.odometer_end_miles - p.odometer_start_miles for p in pieces), 1)
         mileage_to_date = round(mileage_to_date + day_distance, 1)
 
-        for p in pieces:
-            if p.status in (DRIVING, ON_DUTY_NOT_DRIVING):
-                cycle_hours_used += (p.end_datetime - p.start_datetime).total_seconds() / 3600.0
-            if p.stop_type == "restart":
-                cycle_hours_used = 0.0
-
         log_segments = [
             {
                 "status": p.status,
@@ -178,7 +224,8 @@ def build_daily_logs(segments: List[Segment], starting_cycle_hours: float = 0.0)
                 remarks=remarks,
                 totals=totals,
                 total_mileage_to_date=mileage_to_date,
-                cycle_hours_used_end_of_day=round(cycle_hours_used, 2),
+                cycle_hours_used_end_of_day=round(rolling_cycle_at_day_end.get(date_key, (0.0, 0.0))[0], 2),
+                cycle_hours_counting_tomorrow=round(rolling_cycle_at_day_end.get(date_key, (0.0, 0.0))[1], 2),
             )
         )
 

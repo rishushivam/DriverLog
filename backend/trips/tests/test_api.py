@@ -20,6 +20,10 @@ def _fake_get_route(origin, dest, api_key):
     return {"distance_miles": 300.0, "geometry": [origin, dest]}
 
 
+def _fake_short_route(origin, dest, api_key):
+    return {"distance_miles": 60.0, "geometry": [origin, dest]}
+
+
 class TripApiTests(TestCase):
     def setUp(self):
         self.client = APIClient()
@@ -127,14 +131,22 @@ class TripApiTests(TestCase):
         for log in data["logs"] + data["co_driver_logs"]:
             self.assertAlmostEqual(sum(log["totals"].values()), 24.0, places=1)
 
+    def test_restart_hours_below_the_10_hour_daily_minimum_is_rejected(self):
+        # A "restart" shorter than 10h can't even clear the 11/14-hour clocks
+        # (§395.3(a)(1)) — the API refuses it rather than emit an illegal log.
+        payload = {**self.valid_payload, "restart_hours": 5.0}
+        response = self.client.post("/api/trips/", payload, format="json")
+        self.assertEqual(response.status_code, 400)
+        self.assertIn("restart_hours", response.json())
+
     @patch("trips.views.get_route", side_effect=_fake_get_route)
     @patch("trips.views.geocode", side_effect=_fake_geocode)
     def test_custom_restart_hours_is_honored_end_to_end(self, mock_geocode, mock_route):
-        payload = {**self.valid_payload, "current_cycle_used_hours": 68.0, "restart_hours": 5.0}
+        payload = {**self.valid_payload, "current_cycle_used_hours": 68.0, "restart_hours": 12.0}
         response = self.client.post("/api/trips/", payload, format="json")
         self.assertEqual(response.status_code, 201)
         data = response.json()
-        self.assertEqual(data["restart_hours"], 5.0)
+        self.assertEqual(data["restart_hours"], 12.0)
         restart_segments = [s for s in data["segments"] if s["stop_type"] == "restart"]
         self.assertEqual(len(restart_segments), 1)
 
@@ -170,3 +182,59 @@ class GeocodeSuggestApiTests(TestCase):
         response = self.client.get("/api/geocode-suggest/")
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.json(), [])
+
+
+class ShortHaulApiTests(TestCase):
+    """§395.1(e) / §395.1(o) through the API: planned under the relaxed
+    rules, judged, and re-planned under §395.3 with reasons when the
+    exception's own conditions fail."""
+
+    def setUp(self):
+        self.client = APIClient()
+        self.payload = {
+            "current_location": "233 S Wacker Dr, Chicago, IL",
+            "pickup_location": "1520 Demonbreun St, Nashville, TN",
+            "dropoff_location": "191 Peachtree St NE, Atlanta, GA",
+            "current_cycle_used_hours": 10.0,
+            "operating_mode": "short_haul_cdl",
+            "return_to_reporting_location": True,
+        }
+
+    def test_short_haul_requires_a_return_to_base(self):
+        response = self.client.post("/api/trips/", {**self.payload, "return_to_reporting_location": False}, format="json")
+        self.assertEqual(response.status_code, 400)
+        self.assertIn("return_to_reporting_location", response.json())
+
+    @patch("trips.views.get_route", side_effect=_fake_get_route)
+    @patch("trips.views.geocode", side_effect=_fake_geocode)
+    def test_radius_failure_replans_under_standard_rules_with_reason(self, mock_geocode, mock_route):
+        # Chicago -> Nashville -> Atlanta is ~500 air-miles from Chicago.
+        response = self.client.post("/api/trips/", self.payload, format="json")
+        self.assertEqual(response.status_code, 201)
+        data = response.json()
+        self.assertFalse(data["exception_applied"])
+        self.assertTrue(any("150 air-mile" in r for r in data["exception_reasons"]))
+        self.assertEqual(data["logs"][0]["record_type"], "rods")
+        # Standard rules re-applied: 900 miles of driving needs a 10-hour
+        # rest, and the trip still ends with the return to base.
+        self.assertTrue(any(s["stop_type"] == "rest" for s in data["segments"]))
+        self.assertEqual(data["segments"][-1]["stop_type"], "return")
+
+    @patch("trips.views.get_route", side_effect=_fake_short_route)
+    @patch("trips.views.geocode", side_effect=lambda addr, key: [-87.6371, 41.8789])
+    def test_eligible_short_haul_day_yields_a_time_record(self, mock_geocode, mock_route):
+        response = self.client.post("/api/trips/", self.payload, format="json")
+        self.assertEqual(response.status_code, 201)
+        data = response.json()
+        self.assertTrue(data["exception_applied"], data["exception_reasons"])
+        log = data["logs"][0]
+        self.assertEqual(log["record_type"], "time_record")
+        self.assertIn("release_time", log["time_record"])
+        self.assertFalse(any(s["stop_type"] == "break" for s in data["segments"]))
+        self.assertEqual(data["route"]["work_reporting_coords"], [-87.6371, 41.8789])
+
+    def test_16_hour_needs_attestation(self):
+        payload = {**self.payload, "operating_mode": "standard", "use_16_hour_exception": True}
+        response = self.client.post("/api/trips/", payload, format="json")
+        self.assertEqual(response.status_code, 400)
+        self.assertIn("sixteen_hour_attestation", response.json())

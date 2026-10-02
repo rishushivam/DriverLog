@@ -7,6 +7,7 @@ import markerIcon from "leaflet/dist/images/marker-icon.png"
 import markerShadow from "leaflet/dist/images/marker-shadow.png"
 import type { RouteStop, StopType, TripRoute } from "../../api/types"
 import { STOP_COLORS, STOP_LABELS, STOP_ORDER, restartLabel } from "../../config/stopTypes"
+import type { Theme } from "../../hooks/useTheme"
 
 // Leaflet's default marker icon paths don't resolve under Vite's bundler
 // unless re-pointed to the hashed asset URLs explicitly.
@@ -81,7 +82,7 @@ function AnimatedPolyline({ positions }: { positions: LatLngExpression[] }) {
     path.style.strokeDashoffset = "0"
   }, [positions])
 
-  return <Polyline ref={polylineRef} positions={positions} pathOptions={{ color: "#1b2a47", weight: 4 }} />
+  return <Polyline ref={polylineRef} positions={positions} pathOptions={{ color: "var(--accent)", weight: 4, opacity: 0.95 }} />
 }
 
 interface Props {
@@ -93,7 +94,9 @@ interface Props {
   stopSegmentIndices?: (number | null)[]
   activeSegmentIndex?: number | null
   onSelectStop?: (segmentIndex: number) => void
+  onHoverStop?: (segmentIndex: number | null) => void
   height?: string
+  theme: Theme
   /** Only the "restart" marker/legend label depends on this — a trip can
    * override the regulatory 34-hour default (see `restart_hours` on
    * `TripResponse`). */
@@ -117,10 +120,12 @@ export function RouteMap({
   stopSegmentIndices,
   activeSegmentIndex,
   onSelectStop,
+  onHoverStop,
   height = "h-[420px]",
   restartHours,
+  theme,
 }: Props) {
-  const routeLine = [...route.geometry.to_pickup, ...route.geometry.to_dropoff].map(toLatLng)
+  const routeLine = [...route.geometry.to_pickup, ...route.geometry.to_dropoff, ...(route.geometry.to_reporting ?? [])].map(toLatLng)
   const usedTypes = new Set(route.stops.map((s) => s.type))
   const labelFor = (type: StopType) => (type === "restart" ? restartLabel(restartHours) : STOP_LABELS[type])
   const activeStopPosition =
@@ -133,7 +138,7 @@ export function RouteMap({
 
   return (
     <div>
-      <div className={`${height} w-full overflow-hidden rounded-md border border-slate-300 shadow-sm`}>
+      <div className={`${height} w-full overflow-hidden rounded-2xl border border-line shadow-[var(--shadow-card)]`}>
         <MapContainer
           center={toLatLng(route.current_location_coords)}
           zoom={6}
@@ -143,6 +148,7 @@ export function RouteMap({
           <TileLayer
             attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
             url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+            className={theme === "dark" ? "tiles-dark" : undefined}
           />
           <AnimatedPolyline positions={routeLine} />
           {route.stops.map((stop: RouteStop, i: number) => {
@@ -154,7 +160,13 @@ export function RouteMap({
                 position={toLatLng(stop.coords)}
                 icon={stopIcon(stop.type, Math.min(i * 70, MAX_MARKER_STAGGER_MS), isActive)}
                 eventHandlers={
-                  segmentIndex != null && onSelectStop ? { click: () => onSelectStop(segmentIndex) } : undefined
+                  segmentIndex != null
+                    ? {
+                        click: () => onSelectStop?.(segmentIndex),
+                        mouseover: () => onHoverStop?.(segmentIndex),
+                        mouseout: () => onHoverStop?.(null),
+                      }
+                    : undefined
                 }
               >
                 <Popup>
@@ -168,12 +180,12 @@ export function RouteMap({
           <PanToActive position={activeStopPosition} />
         </MapContainer>
       </div>
-      <div className="mt-3 flex flex-wrap gap-x-5 gap-y-2 border-t border-slate-200 pt-3">
+      <div className="mt-3 flex flex-wrap gap-x-5 gap-y-2 px-1">
         {STOP_ORDER.filter((type) => usedTypes.has(type)).map((type) => (
-          <div key={type} className="flex items-center gap-1.5 text-xs text-slate-600">
+          <div key={type} className="flex items-center gap-1.5 text-xs text-ink-2">
             <span
               aria-hidden="true"
-              className="inline-block h-2.5 w-2.5 rounded-full border border-white ring-1 ring-slate-300"
+              className="inline-block h-2.5 w-2.5 rounded-full border border-surface ring-1 ring-line-strong"
               style={{ backgroundColor: STOP_COLORS[type] }}
             />
             {labelFor(type)}
