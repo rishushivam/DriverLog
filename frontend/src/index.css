@@ -3,15 +3,59 @@
 @custom-variant dark (&:where(.dark, .dark *));
 
 /* ------------------------------------------------------------------ */
-/* Tokens. One accent (amber) carries every primary action and the     */
-/* active state of every control; the neutral surface scale does the   */
-/* rest. Status colours live in config/stopTypes.ts and mean one thing */
-/* each — they are never decoration.                                    */
+/* Design tokens                                                        */
+/*  - 8-pt spacing scale (space-1 … space-10)                           */
+/*  - radius scale (sm/md/lg/xl/2xl)                                     */
+/*  - elevation (shadow-1/2/3)                                           */
+/*  - one sans family (Inter) everywhere; figures use tabular-nums        */
+/*  - restrained palette: neutral surfaces + one amber accent +          */
+/*    semantic success / warning / danger / info                         */
 /* ------------------------------------------------------------------ */
 @theme {
-  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
-  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+  --font-sans: "Inter", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-mono: var(--font-sans);
 
+  /* Type scale 12 / 14 / 16 / 20 / 28 */
+  --text-xs: 0.75rem;
+  --text-xs--line-height: 1rem;
+  --text-sm: 0.875rem;
+  --text-sm--line-height: 1.25rem;
+  --text-base: 1rem;
+  --text-base--line-height: 1.5rem;
+  --text-lg: 1.25rem;
+  --text-lg--line-height: 1.75rem;
+  --text-xl: 1.25rem;
+  --text-xl--line-height: 1.75rem;
+  --text-2xl: 1.75rem;
+  --text-2xl--line-height: 2.25rem;
+
+  /* 8-pt spacing scale */
+  --spacing-1: 0.25rem;
+  --spacing-2: 0.5rem;
+  --spacing-3: 0.75rem;
+  --spacing-4: 1rem;
+  --spacing-5: 1.5rem;
+  --spacing-6: 2rem;
+  --spacing-7: 2.5rem;
+  --spacing-8: 3rem;
+  --spacing-9: 4rem;
+  --spacing-10: 6rem;
+
+  /* Radius scale */
+  --radius-sm: 0.375rem;
+  --radius-md: 0.5rem;
+  --radius-lg: 0.75rem;
+  --radius-xl: 1rem;
+  --radius-2xl: 1.25rem;
+
+  /* Elevation */
+  --shadow-1: 0 1px 2px rgb(16 24 40 / 0.06);
+  --shadow-2: 0 1px 2px rgb(16 24 40 / 0.05), 0 6px 18px -8px rgb(16 24 40 / 0.16);
+  --shadow-3: 0 12px 32px -12px rgb(16 24 40 / 0.3), 0 2px 6px -2px rgb(16 24 40 / 0.08);
+  --shadow-card: var(--shadow-2);
+  --shadow-pop: var(--shadow-3);
+
+  /* Accent ramp (amber) */
   --color-accent-50: #fff8eb;
   --color-accent-100: #feefc7;
   --color-accent-200: #fddc8a;
@@ -23,6 +67,7 @@
   --color-accent-800: #6b3b0b;
   --color-accent-900: #4a290a;
 
+  /* Theme-driven aliases */
   --color-canvas: var(--canvas);
   --color-surface: var(--surface);
   --color-surface-2: var(--surface-2);
@@ -36,26 +81,53 @@
   --color-accent-ink: var(--accent-ink);
   --color-accent-soft: var(--accent-soft);
 
-  --radius-xl: 0.875rem;
-  --radius-2xl: 1.125rem;
+  /* Semantic */
+  --color-success: var(--success);
+  --color-success-soft: var(--success-soft);
+  --color-success-ink: var(--success-ink);
+  --color-warning: var(--warning);
+  --color-warning-soft: var(--warning-soft);
+  --color-warning-ink: var(--warning-ink);
+  --color-danger: var(--danger);
+  --color-danger-soft: var(--danger-soft);
+  --color-danger-ink: var(--danger-ink);
+  --color-info: var(--info);
+  --color-info-soft: var(--info-soft);
+  --color-info-ink: var(--info-ink);
 
-  --shadow-card: 0 1px 2px rgb(16 24 40 / 0.05), 0 6px 18px -8px rgb(16 24 40 / 0.14);
-  --shadow-pop: 0 12px 32px -12px rgb(16 24 40 / 0.28), 0 2px 6px -2px rgb(16 24 40 / 0.08);
+  --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 :root {
-  --canvas: #f6f5f2;
+  --canvas: #f5f4f0;
   --surface: #ffffff;
   --surface-2: #faf9f6;
-  --surface-3: #f0eee9;
-  --line: #e6e3dc;
-  --line-strong: #cfcbc1;
-  --ink: #16181d;
-  --ink-2: #4b5160;
-  --ink-3: #7a8191;
+  --surface-3: #efede8;
+  --line: #e3e0d9;
+  --line-strong: #c9c4b9;
+  --ink: #15171c;
+  --ink-2: #434956;
+  --ink-3: #5f6673; /* 6.0:1 on white */
   --accent: #d97b06;
   --accent-ink: #1b1104;
   --accent-soft: #fff1d6;
+
+  --success: #15803d;
+  --success-soft: #e7f6ec;
+  --success-ink: #14532d;
+  --warning: #b45309;
+  --warning-soft: #fff4e0;
+  --warning-ink: #78350f;
+  --danger: #c2410c;
+  --danger-soft: #fdeae3;
+  --danger-ink: #7c2d12;
+  --info: #1d4ed8;
+  --info-soft: #e8eefc;
+  --info-ink: #1e3a8a;
+
+  --sidebar-w: 380px;
+  --rail-w: 64px;
+  --header-h: 56px;
   color-scheme: light;
 }
 
@@ -63,15 +135,28 @@
   --canvas: #0f1115;
   --surface: #171a20;
   --surface-2: #1c2027;
-  --surface-3: #232833;
-  --line: #2a2f39;
-  --line-strong: #3b414e;
-  --ink: #f2f3f5;
-  --ink-2: #b4bac6;
-  --ink-3: #7f8797;
+  --surface-3: #242934;
+  --line: #2b303b;
+  --line-strong: #3f4553;
+  --ink: #f3f4f6;
+  --ink-2: #c3c8d2;
+  --ink-3: #9aa2b1; /* 6.3:1 on surface */
   --accent: #f5a623;
   --accent-ink: #1b1104;
   --accent-soft: #3a2a0f;
+
+  --success: #4ade80;
+  --success-soft: #0f2a1a;
+  --success-ink: #bbf7d0;
+  --warning: #fbbf24;
+  --warning-soft: #2e2208;
+  --warning-ink: #fde68a;
+  --danger: #fb923c;
+  --danger-soft: #311a0d;
+  --danger-ink: #fed7aa;
+  --info: #60a5fa;
+  --info-soft: #0f1e3a;
+  --info-ink: #bfdbfe;
   color-scheme: dark;
 }
 
@@ -79,11 +164,14 @@ html {
   font-family: var(--font-sans);
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
+  scroll-behavior: smooth;
 }
 
 body {
   background: var(--canvas);
   color: var(--ink);
+  font-size: 0.875rem;
+  line-height: 1.25rem;
 }
 
 ::selection {
@@ -91,11 +179,10 @@ body {
   color: var(--accent-ink);
 }
 
-/* Figures are measurements: mono, tabular. */
+/* Figures are measurements: same family, tabular digits. */
 .num {
-  font-family: var(--font-mono);
   font-variant-numeric: tabular-nums;
-  letter-spacing: -0.01em;
+  letter-spacing: -0.005em;
 }
 
 /* Thin themed scrollbars on every scroll region we own. */
@@ -117,6 +204,11 @@ body {
   background: transparent;
 }
 
+/* Fade edges on internal scroll regions. */
+.fade-edges {
+  mask-image: linear-gradient(to bottom, transparent 0, black 16px, black calc(100% - 20px), transparent 100%);
+}
+
 /* Focus ring language shared by every control, including SVG hit areas. */
 .focus-ring {
   outline: none;
@@ -133,6 +225,65 @@ body {
   outline-offset: -2px;
 }
 
+/* Card primitive. */
+.card {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-2xl);
+  box-shadow: var(--shadow-2);
+}
+
+/* Interactive states shared by buttons. */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  border-radius: var(--radius-lg);
+  font-weight: 600;
+  transition:
+    background-color 150ms var(--ease-out-expo),
+    border-color 150ms var(--ease-out-expo),
+    color 150ms var(--ease-out-expo),
+    box-shadow 150ms var(--ease-out-expo),
+    opacity 150ms var(--ease-out-expo),
+    transform 150ms var(--ease-out-expo);
+}
+.btn:active:not(:disabled) {
+  transform: scale(0.98);
+}
+.btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+.btn-primary {
+  background: var(--accent);
+  color: var(--accent-ink);
+  box-shadow: 0 1px 2px rgb(0 0 0 / 0.18), 0 8px 18px -8px var(--accent);
+}
+.btn-primary:hover:not(:disabled) {
+  background: var(--color-accent-400);
+}
+.btn-primary:disabled {
+  box-shadow: none;
+}
+.btn-secondary {
+  background: var(--surface);
+  color: var(--ink);
+  border: 1px solid var(--line);
+}
+.btn-secondary:hover:not(:disabled) {
+  border-color: var(--line-strong);
+  background: var(--surface-2);
+}
+.btn-ghost {
+  color: var(--ink-2);
+}
+.btn-ghost:hover:not(:disabled) {
+  color: var(--ink);
+  background: var(--surface-2);
+}
+
 /* Range input: themed track + thumb (both engines). */
 input[type="range"].cycle-range {
   -webkit-appearance: none;
@@ -144,7 +295,7 @@ input[type="range"].cycle-range {
 input[type="range"].cycle-range::-webkit-slider-runnable-track {
   height: 6px;
   border-radius: 9999px;
-  background: linear-gradient(to right, var(--accent) 0 var(--fill, 0%), var(--line) var(--fill, 0%) 100%);
+  background: linear-gradient(to right, var(--range-color, var(--accent)) 0 var(--fill, 0%), var(--line) var(--fill, 0%) 100%);
 }
 input[type="range"].cycle-range::-moz-range-track {
   height: 6px;
@@ -154,7 +305,7 @@ input[type="range"].cycle-range::-moz-range-track {
 input[type="range"].cycle-range::-moz-range-progress {
   height: 6px;
   border-radius: 9999px;
-  background: var(--accent);
+  background: var(--range-color, var(--accent));
 }
 input[type="range"].cycle-range::-webkit-slider-thumb {
   -webkit-appearance: none;
@@ -163,7 +314,7 @@ input[type="range"].cycle-range::-webkit-slider-thumb {
   margin-top: -6px;
   border-radius: 9999px;
   background: var(--surface);
-  border: 2px solid var(--accent);
+  border: 2px solid var(--range-color, var(--accent));
   box-shadow: 0 1px 3px rgb(0 0 0 / 0.25);
   transition: transform 120ms ease-out;
 }
@@ -172,7 +323,7 @@ input[type="range"].cycle-range::-moz-range-thumb {
   height: 18px;
   border-radius: 9999px;
   background: var(--surface);
-  border: 2px solid var(--accent);
+  border: 2px solid var(--range-color, var(--accent));
   box-shadow: 0 1px 3px rgb(0 0 0 / 0.25);
 }
 input[type="range"].cycle-range:active::-webkit-slider-thumb {
@@ -197,15 +348,86 @@ input[type="range"].cycle-range:focus-visible {
 @keyframes marker-pop {
   from {
     opacity: 0;
-    transform: scale(calc(0.4 * var(--marker-scale, 1)));
+    transform: scale(0.4);
   }
   to {
     opacity: 1;
-    transform: scale(var(--marker-scale, 1));
+    transform: scale(1);
   }
 }
 .marker-pop {
-  animation: marker-pop 320ms cubic-bezier(0.16, 1, 0.3, 1) both;
+  animation: marker-pop 320ms var(--ease-out-expo) both;
+}
+.map-marker {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  color: white;
+  border: 2px solid white;
+  box-shadow: 0 1px 2px rgb(0 0 0 / 0.35), 0 0 0 1px rgb(0 0 0 / 0.2);
+  transition: box-shadow 150ms ease-out, transform 150ms ease-out;
+  cursor: pointer;
+}
+.map-marker[data-active="true"] {
+  transform: scale(1.18);
+  box-shadow: 0 0 0 5px var(--marker-ring), 0 1px 3px rgb(0 0 0 / 0.4);
+  z-index: 10;
+}
+.map-marker .map-marker-n {
+  position: absolute;
+  top: -8px;
+  right: -8px;
+  min-width: 17px;
+  height: 17px;
+  padding: 0 4px;
+  border-radius: 9999px;
+  background: var(--ink);
+  color: var(--surface);
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 17px;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+  border: 1.5px solid var(--surface);
+}
+.map-marker--circle {
+  border-radius: 9999px;
+}
+.map-marker--square {
+  border-radius: 6px;
+}
+.map-marker--diamond {
+  border-radius: 6px;
+  transform: rotate(45deg);
+}
+.map-marker--diamond > svg {
+  transform: rotate(-45deg);
+}
+.map-marker--diamond[data-active="true"] {
+  transform: rotate(45deg) scale(1.18);
+}
+.map-marker--diamond .map-marker-n {
+  transform: rotate(-45deg);
+  top: -12px;
+  right: -12px;
+}
+.map-marker--pin {
+  border-radius: 9999px 9999px 9999px 2px;
+}
+.map-marker--hex {
+  border-radius: 10px 4px 10px 4px;
+}
+
+.map-fullscreen {
+  position: fixed !important;
+  inset: 0 !important;
+  z-index: 60 !important;
+  height: 100dvh !important;
+  width: 100vw !important;
+  border-radius: 0 !important;
 }
 
 /* Skeleton shimmer. */
@@ -229,31 +451,95 @@ input[type="range"].cycle-range:focus-visible {
 .leaflet-popup-tip {
   background: var(--surface);
   color: var(--ink);
-  box-shadow: var(--shadow-pop);
+  box-shadow: var(--shadow-3);
+}
+.leaflet-popup-content {
+  margin: 10px 14px;
+  font-size: 13px;
+  line-height: 1.35;
 }
 .leaflet-container {
   font-family: var(--font-sans);
   background: var(--surface-3);
 }
-/* OSM tiles are light-only; in dark mode they are inverted and desaturated
-   so the route line and markers keep their meaning against a dim ground. */
-.tiles-dark {
-  filter: invert(1) hue-rotate(180deg) brightness(0.82) contrast(0.92) saturate(0.6);
-}
+.leaflet-control-zoom a,
 .dark .leaflet-control-zoom a {
   background: var(--surface);
   color: var(--ink);
   border-color: var(--line);
 }
+.leaflet-control-attribution,
 .dark .leaflet-control-attribution {
-  background: rgb(23 26 32 / 0.8);
+  background: color-mix(in srgb, var(--surface) 80%, transparent);
   color: var(--ink-3);
+  font-size: 10px;
+}
+.leaflet-control-attribution a {
+  color: var(--ink-2);
+}
+
+/* Log sheet: paper by default; "match theme" swaps the paper palette for
+   the app surface. Print always forces paper so exports never change. */
+.log-paper {
+  --paper: #ffffff;
+  --paper-ink: #0f172a;
+  --paper-ink-2: #334155;
+  --paper-ink-3: #64748b;
+  --paper-line: #cbd5e1;
+  --paper-line-strong: #0f172a;
+  --paper-band: #0f172a;
+  --paper-band-ink: #ffffff;
+  background: var(--paper);
+  color: var(--paper-ink);
+}
+.log-paper.log-paper--theme {
+  --paper: var(--surface);
+  --paper-ink: var(--ink);
+  --paper-ink-2: var(--ink-2);
+  --paper-ink-3: var(--ink-3);
+  --paper-line: var(--line-strong);
+  --paper-line-strong: var(--ink);
+  --paper-band: var(--surface-3);
+  --paper-band-ink: var(--ink);
+}
+.log-paper input {
+  background: transparent;
+  color: var(--paper-ink);
+  border-bottom: 1px dotted var(--paper-line);
+  width: 100%;
+  font-size: 13px;
+  padding: 2px 0;
+  outline: none;
+}
+.log-paper input::placeholder {
+  color: var(--paper-ink-3);
+  opacity: 0.8;
+}
+.log-paper input:focus-visible {
+  border-bottom-color: var(--accent);
 }
 
 /* Print: only the log sheets, one per page. */
 @media print {
   body {
     background: white;
+  }
+  .log-paper,
+  .log-paper.log-paper--theme {
+    --paper: #ffffff;
+    --paper-ink: #0f172a;
+    --paper-ink-2: #334155;
+    --paper-ink-3: #64748b;
+    --paper-line: #cbd5e1;
+    --paper-line-strong: #0f172a;
+    --paper-band: #0f172a;
+    --paper-band-ink: #ffffff;
+  }
+  .log-paper input {
+    border-bottom: 1px dotted #cbd5e1;
+  }
+  .log-paper input::placeholder {
+    color: transparent;
   }
   .eld-print-page {
     break-after: page;
@@ -266,8 +552,17 @@ input[type="range"].cycle-range:focus-visible {
 }
 
 @media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
   .marker-pop,
   .skeleton {
     animation: none;
+  }
+  *,
+  *::before,
+  *::after {
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
   }
 }

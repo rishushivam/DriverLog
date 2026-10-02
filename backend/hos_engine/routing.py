@@ -19,10 +19,21 @@ _RETRY_DELAY_SECONDS = 1.5
 # use, since the snapped point is where routing starts.
 _SNAP_RADII_METERS = (350, 2000, 10000)
 _UNROUTABLE_POINT_CODE = 2010
+# The public ORS server refuses any single request whose route would
+# exceed 6,000 km (error 2004). No leg of a Part 395 trip comes close, so
+# this is pre-checked on the great-circle distance before calling out.
+_ROUTE_LIMIT_CODE = 2004
+MAX_LEG_STATUTE_MILES = 6_000_000 / METERS_PER_MILE  # ~3,728 mi
 
 
 class RoutingError(Exception):
     pass
+
+
+def _great_circle_miles(a: list, b: list) -> float:
+    from .geometry import _haversine_miles
+
+    return _haversine_miles(a, b)
 
 
 def get_route(origin_coords: list, dest_coords: list, api_key: str) -> dict:
@@ -34,6 +45,12 @@ def get_route(origin_coords: list, dest_coords: list, api_key: str) -> dict:
     average truck speed, never from ORS's own "duration" (which reflects
     car-like travel patterns with no awareness of FMCSA rest rules).
     """
+    straight = _great_circle_miles(origin_coords, dest_coords)
+    if straight > MAX_LEG_STATUTE_MILES:
+        raise RoutingError(
+            f"These two locations are about {straight:,.0f} miles apart in a straight line. "
+            f"The routing service plans legs up to {MAX_LEG_STATUTE_MILES:,.0f} road miles; split the trip or check the addresses."
+        )
     resp = None
     for radius in _SNAP_RADII_METERS:
         resp = _post_directions(origin_coords, dest_coords, api_key, radius)
@@ -50,6 +67,11 @@ def get_route(origin_coords: list, dest_coords: list, api_key: str) -> dict:
         if not _is_unroutable_point(resp):
             break
 
+    if _error_code(resp) == _ROUTE_LIMIT_CODE:
+        raise RoutingError(
+            f"This leg is longer than the routing service allows ({MAX_LEG_STATUTE_MILES:,.0f} road miles). "
+            "Split the trip into shorter legs or check the addresses."
+        )
     if _is_unroutable_point(resp):
         raise RoutingError(
             "One of the locations is not within 10 km of a road a truck can use. "
@@ -75,9 +97,13 @@ def _post_directions(origin_coords: list, dest_coords: list, api_key: str, radiu
     raise RoutingError(f"Could not reach the routing service: {last_exc}") from last_exc
 
 
-def _is_unroutable_point(resp) -> bool:
+def _error_code(resp):
     try:
-        return resp.json().get("error", {}).get("code") == _UNROUTABLE_POINT_CODE
+        return resp.json().get("error", {}).get("code")
     except ValueError:
-        return False
+        return None
+
+
+def _is_unroutable_point(resp) -> bool:
+    return _error_code(resp) == _UNROUTABLE_POINT_CODE
 
