@@ -191,7 +191,7 @@ def annotate_logs(logs: List[Dict], ev: Optional[ExceptionEvaluation], rules: Ho
                 "window_hours": round(p.window_hours, 2),
                 "farthest_air_miles": round(ev.farthest_air_miles, 1),
             }
-            name = "CDL short-haul exception (§395.1(e)(1))" if ev.mode == SHORT_HAUL_CDL else "non-CDL short-haul exception (§395.1(e)(2))"
+            name = "CDL short-haul exception" if ev.mode == SHORT_HAUL_CDL else "non-CDL short-haul exception"
             log["exception_notes"].append(f"Operated under the {name}: time record in place of a RODS; 30-minute break not required.")
         if ev.extended_period_index is not None and p is not None and ev.periods[ev.extended_period_index] is p:
             log["exception_notes"].append(rules.extended_window_remark or "Extended driving window used.")

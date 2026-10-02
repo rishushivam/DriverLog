@@ -24,9 +24,9 @@ export function complianceStatus(trip: TripResponse): { ok: boolean; reasons: st
   if (trip.logs.length > 5) reasons.push(`${trip.logs.length} log days`)
   if (trip.driving_hours_today > 0 || trip.on_duty_hours_today > 0) reasons.push("driver was mid-shift at departure")
   if (trip.operating_mode !== "standard" && !trip.exception_applied) {
-    reasons.push(`short-haul exception not available (${(trip.exception_reasons ?? []).join("; ") || "conditions not met"}) — planned under §395.3 instead`)
+    reasons.push(`short-haul exception not available (${(trip.exception_reasons ?? []).join("; ") || "conditions not met"}) — planned under standard rules instead`)
   }
-  if (trip.use_16_hour_exception) reasons.push(trip.exception_applied ? "16-hour exception used today (§395.1(o))" : "16-hour exception enabled but not needed")
+  if (trip.use_16_hour_exception) reasons.push(trip.exception_applied ? "16-hour exception used today" : "16-hour exception enabled but not needed")
   return { ok: reasons.length === 0, reasons }
 }
 

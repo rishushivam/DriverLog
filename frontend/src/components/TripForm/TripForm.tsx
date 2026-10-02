@@ -198,7 +198,7 @@ export function TripForm({ onSubmit, isSubmitting, justSucceeded, error, driverI
         ? "Non-CDL short-haul"
         : form.use_16_hour_exception
           ? "Standard + 16-hr exception"
-          : "Standard §395.3"
+          : "Standard rules"
   const exceptionActive = form.operating_mode !== "standard" || form.use_16_hour_exception
 
   return (
@@ -373,7 +373,7 @@ export function TripForm({ onSubmit, isSubmitting, justSucceeded, error, driverI
             onBlur={touch("restart_hours")}
             error={fieldError("restart_hours")}
             valid={!clientErrors.restart_hours}
-            hint="§395.3(c) sets 34 hours. Change it only to explore a what-if; 10 is the shortest break that clears the daily clocks."
+            hint="The regulation sets 34 hours. Change it only to explore a what-if; 10 is the shortest break that clears the daily clocks."
           />
         </Reveal>
 
@@ -459,10 +459,10 @@ export function TripForm({ onSubmit, isSubmitting, justSucceeded, error, driverI
           />
           <p className="mt-2 px-1 text-xs text-ink-3">
             {form.operating_mode === "standard"
-              ? "§395.3: 11 h driving in a 14 h window with a 30-min break after 8 h of driving."
+              ? "Standard rules: 11 h driving in a 14 h window with a 30-min break after 8 h of driving."
               : form.operating_mode === "short_haul_cdl"
-                ? "§395.1(e)(1): within 150 air-miles of base, back and released within 14 h, no 30-min break. A time record replaces the log."
-                : "§395.1(e)(2): within 150 air-miles of base, no 30-min break, driving to the 14th hour — or the 16th on 2 days per week."}
+                ? "CDL short-haul: stay within 150 air-miles of base, be back and released within 14 h, no 30-min break. A time record replaces the log."
+                : "Non-CDL short-haul: stay within 150 air-miles of base, no 30-min break, drive until the 14th hour — or the 16th on 2 days per week."}
           </p>
           {form.operating_mode === "standard" && (
             <label className="mt-3 flex cursor-pointer items-start gap-2.5 rounded-xl border border-line bg-surface-2 px-3 py-2.5 text-sm text-ink">
@@ -474,7 +474,7 @@ export function TripForm({ onSubmit, isSubmitting, justSucceeded, error, driverI
               />
               <span>
                 <span className="block font-medium">Use the 16-hour exception today</span>
-                <span className="block text-xs text-ink-3">§395.1(o): the window stretches to 16 h once every 7 days for a driver who returns to base.</span>
+                <span className="block text-xs text-ink-3">The 14-hour window stretches to 16 h once every 7 days for a driver who returns to base.</span>
               </span>
             </label>
           )}
@@ -506,7 +506,7 @@ export function TripForm({ onSubmit, isSubmitting, justSucceeded, error, driverI
               unit="of 2"
               value={form.days_past_14th_hour_this_week}
               onChange={(e) => set("days_past_14th_hour_this_week")(e.target.value)}
-              hint="§395.1(e)(2) allows driving to the 16th hour on at most 2 days in any 7."
+              hint="Non-CDL short-haul allows driving to the 16th hour on at most 2 days in any 7."
             />
           </Reveal>
         </Reveal>

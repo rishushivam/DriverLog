@@ -54,7 +54,7 @@ class ShortHaulRulesInEngineTests(unittest.TestCase):
         periods_ext = duty_periods(extended.segments)
         self.assertGreater(len(periods_std), len(periods_ext))
         self.assertLessEqual(periods_ext[0].window_hours + 2.0, 16.0 + 1e-6)
-        crossing = [s for s in extended.segments if s.remark and "§395.1(o)" in s.remark]
+        crossing = [s for s in extended.segments if s.remark and "16-hour short-haul exception" in s.remark]
         self.assertEqual(len(crossing), 1)
         self.assertEqual(crossing[0].status, DRIVING)
 
@@ -116,7 +116,7 @@ class EligibilityTests(unittest.TestCase):
         self.assertTrue(ev.applied)
         logs = annotate_logs([l.to_dict() for l in build_daily_logs(r.segments)], ev, rules)
         self.assertEqual(logs[0]["record_type"], "rods")
-        self.assertTrue(any("§395.1(o)" in n for n in logs[0]["exception_notes"]))
+        self.assertTrue(any("16-hour short-haul exception" in n for n in logs[0]["exception_notes"]))
 
     def test_short_haul_logs_become_time_records(self):
         rules = short_haul_cdl_rules()

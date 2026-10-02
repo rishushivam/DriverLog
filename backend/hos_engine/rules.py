@@ -52,7 +52,7 @@ def standard_rules(use_16_hour_exception: bool = False) -> HosRules:
             window_hours=c.MAX_ON_DUTY_WINDOW_HOURS,
             extended_window_hours=c.SIXTEEN_HOUR_EXCEPTION_WINDOW_HOURS,
             extended_window_days=1,
-            extended_window_remark="Driving past the 14th hour under the 16-hour short-haul exception (§395.1(o))",
+            extended_window_remark="Driving past the 14th hour under the 16-hour short-haul exception",
             mode=STANDARD,
         )
     return HosRules()
@@ -73,6 +73,6 @@ def short_haul_non_cdl_rules(days_past_14th_hour_this_week: int) -> HosRules:
         window_hours=c.MAX_ON_DUTY_WINDOW_HOURS,
         extended_window_hours=c.SIXTEEN_HOUR_EXCEPTION_WINDOW_HOURS,
         extended_window_days=remaining,
-        extended_window_remark="Driving past the 14th hour under the non-CDL short-haul exception (§395.1(e)(2))",
+        extended_window_remark="Driving past the 14th hour under the non-CDL short-haul exception",
         mode=SHORT_HAUL_NON_CDL,
     )

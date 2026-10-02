@@ -36,7 +36,7 @@ export const STOP_REASONS: Record<StopType, string> = {
   break: "Required 30-minute break after 8 hrs driving",
   rest: "Required 10-hr rest to reset daily driving window",
   restart: "34-hr restart to reset the 70-hr/8-day cycle",
-  cycle_wait: "Off duty until older hours age off the rolling cycle window — sooner than a restart (§395.3(b))",
+  cycle_wait: "Off duty until older hours age off the rolling cycle window — sooner than a restart",
   return: "Back at the work reporting location — checked in and released from duty",
 }
 

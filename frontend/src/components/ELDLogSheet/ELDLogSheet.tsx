@@ -205,7 +205,7 @@ export function ELDLogSheet({ log, driver, trip, allLogs, dayIndex, highlightMin
         <div className={`mt-3 rounded-lg border px-3 py-2.5 text-xs ${log.record_type === "time_record" ? "border-teal-300 bg-teal-50 text-teal-900" : "border-amber-300 bg-amber-50 text-amber-900"}`}>
           {log.record_type === "time_record" && log.time_record && (
             <div className="mb-1.5 flex flex-wrap gap-x-6 gap-y-1">
-              <span className="font-semibold">Short-haul time record (§395.1(e))</span>
+              <span className="font-semibold">Short-haul time record</span>
               <span>
                 Reported <span className="num font-medium">{log.time_record.report_time}</span>
               </span>
