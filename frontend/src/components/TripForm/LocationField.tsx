@@ -76,6 +76,11 @@ export function LocationField({ id, label, value, onChange, geocoded, error, hin
   }
 
   function select(labelText: string) {
+    // A debounced fetch for the half-typed query may still be in flight;
+    // drop it so a late response can't reopen the list over the next field.
+    if (debounceRef.current) clearTimeout(debounceRef.current)
+    abortRef.current?.abort()
+    setLoading(false)
     onChange(labelText, true)
     setSuggestions([])
     setIsOpen(false)

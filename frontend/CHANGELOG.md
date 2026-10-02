@@ -92,7 +92,7 @@ Removed: `ui/Chip.tsx` (the "Change / Done" chips), `layout/BottomSheet.tsx` (re
 | Blank ruled fields. | Shipping documents, DVL/manifest no. and shipper & commodity are inputs with placeholders; values are kept per day and included in "Copy as text". |
 | Both 70-hr and 60-hr recap blocks always rendered. | Only the block for the trip's schedule is shown (custom gets its own). |
 | Day tabs showed only a date. | Status dot (OK / warning), the day's driving hours, prev/next arrows, Home/End keys. |
-| "Copy" / "Export PDF" with no feedback. | **Copy as text**, **Export PDF**, **Print** with toast confirmations and a loading state. |
+| "Copy" / "Export PDF" with no feedback. | **Copy as text** and one **Print / Save as PDF** action (both former buttons called `window.print()`; the dialog *is* the PDF export) with toast confirmations and a loading state. |
 
 ## 7. Design system
 

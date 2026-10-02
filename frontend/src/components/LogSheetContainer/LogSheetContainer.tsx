@@ -1,5 +1,5 @@
 import { AnimatePresence, motion } from "framer-motion"
-import { AlertTriangle, ChevronLeft, ChevronRight, Copy, FileDown, Palette, Printer } from "lucide-react"
+import { AlertTriangle, ChevronLeft, ChevronRight, Copy, Palette, Printer } from "lucide-react"
 import { useCallback, useEffect, useState } from "react"
 import type { DailyLog, DriverProfile, TripResponse } from "../../api/types"
 import { useLocalStorage } from "../../hooks/useLocalStorage"
@@ -50,14 +50,14 @@ export function LogSheetContainer({ logs, days, driver, trip, activeIndex, onAct
   const [internalIndex, setInternalIndex] = useState(0)
   const [matchTheme, setMatchTheme] = useLocalStorage<boolean>("eld-log-match-theme", false)
   const [fieldsByDate, setFieldsByDate] = useState<Record<string, SheetFields>>({})
-  const [printing, setPrinting] = useState<"pdf" | "print" | null>(null)
+  const [printing, setPrinting] = useState(false)
   const index = Math.min(activeIndex ?? internalIndex, logs.length - 1)
   const setIndex = onActiveIndexChange ?? setInternalIndex
   const log = logs[index]
   const fieldsFor = useCallback((date: string) => fieldsByDate[date] ?? EMPTY_FIELDS, [fieldsByDate])
 
   useEffect(() => {
-    const done = () => setPrinting(null)
+    const done = () => setPrinting(false)
     window.addEventListener("afterprint", done)
     return () => window.removeEventListener("afterprint", done)
   }, [])
@@ -74,12 +74,15 @@ export function LogSheetContainer({ logs, days, driver, trip, activeIndex, onAct
     }
   }
 
-  function print(mode: "pdf" | "print") {
-    setPrinting(mode)
-    toast("info", mode === "pdf" ? "Opening the print dialog" : "Preparing to print", mode === "pdf" ? 'Choose "Save as PDF" as the destination.' : `${setsToPrint.reduce((n, s) => n + s.logs.length, 0)} page(s), one per day.`)
+  /** One action: the browser's print dialog is also the PDF export
+   * (Save as PDF). Print CSS renders one page per day. */
+  function print() {
+    setPrinting(true)
+    const pages = setsToPrint.reduce((n, s) => n + s.logs.length, 0)
+    toast("info", "Opening the print dialog", `${pages} page${pages === 1 ? "" : "s"}, one per day. Choose "Save as PDF" as the destination to export.`)
     setTimeout(() => {
       window.print()
-      setTimeout(() => setPrinting(null), 1500)
+      setTimeout(() => setPrinting(false), 1500)
     }, 150)
   }
 
@@ -131,11 +134,8 @@ export function LogSheetContainer({ logs, days, driver, trip, activeIndex, onAct
             <Button size="sm" variant="secondary" onClick={copyLog} leading={<Copy size={13} aria-hidden="true" />}>
               Copy as text
             </Button>
-            <Button size="sm" variant="secondary" onClick={() => print("pdf")} loading={printing === "pdf"} leading={<FileDown size={13} aria-hidden="true" />}>
-              Export PDF
-            </Button>
-            <Button size="sm" variant="secondary" onClick={() => print("print")} loading={printing === "print"} leading={<Printer size={13} aria-hidden="true" />}>
-              Print
+            <Button size="sm" variant="secondary" onClick={print} loading={printing} leading={<Printer size={13} aria-hidden="true" />}>
+              Print / Save as PDF
             </Button>
           </div>
         </div>
