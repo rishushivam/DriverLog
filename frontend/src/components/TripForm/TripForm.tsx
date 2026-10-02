@@ -464,8 +464,25 @@ export function TripForm({ onSubmit, isSubmitting, justSucceeded, error, driverI
                 ? "CDL short-haul: stay within 150 air-miles of base, be back and released within 14 h, no 30-min break. A time record replaces the log."
                 : "Non-CDL short-haul: stay within 150 air-miles of base, no 30-min break, drive until the 14th hour — or the 16th on 2 days per week."}
           </p>
+          <Reveal open={form.operating_mode === "short_haul_non_cdl"}>
+            <Field
+              id={`${uid}-days-14`}
+              label="Days this week already driven past the 14th hour"
+              type="number"
+              inputMode="numeric"
+              min={0}
+              max={2}
+              step={1}
+              unit="of 2"
+              value={form.days_past_14th_hour_this_week}
+              onChange={(e) => set("days_past_14th_hour_this_week")(e.target.value)}
+              hint="Non-CDL short-haul allows driving to the 16th hour on at most 2 days in any 7."
+            />
+          </Reveal>
+        </Reveal>
+
           {form.operating_mode === "standard" && (
-            <label className="mt-3 flex cursor-pointer items-start gap-2.5 rounded-xl border border-line bg-surface-2 px-3 py-2.5 text-sm text-ink">
+            <label className="flex cursor-pointer items-start gap-2.5 rounded-xl border border-line bg-surface-2 px-3 py-2.5 text-sm text-ink">
               <input
                 type="checkbox"
                 className="mt-0.5 h-4 w-4 accent-[var(--accent)]"
@@ -494,24 +511,8 @@ export function TripForm({ onSubmit, isSubmitting, justSucceeded, error, driverI
             </label>
             {fieldError("sixteen_hour_attestation") && <p className="mt-1 px-1 text-xs text-red-600 dark:text-red-400">{fieldError("sixteen_hour_attestation")}</p>}
           </Reveal>
-          <Reveal open={form.operating_mode === "short_haul_non_cdl"}>
-            <Field
-              id={`${uid}-days-14`}
-              label="Days this week already driven past the 14th hour"
-              type="number"
-              inputMode="numeric"
-              min={0}
-              max={2}
-              step={1}
-              unit="of 2"
-              value={form.days_past_14th_hour_this_week}
-              onChange={(e) => set("days_past_14th_hour_this_week")(e.target.value)}
-              hint="Non-CDL short-haul allows driving to the 16th hour on at most 2 days in any 7."
-            />
-          </Reveal>
-        </Reveal>
 
-        <Reveal open={exceptionActive || form.return_to_reporting_location}>
+        <Reveal open={exceptionActive || form.return_to_reporting_location || form.operating_mode === "standard"}>
           <div className="space-y-3">
             <label className="flex cursor-pointer items-start gap-2.5 rounded-xl border border-line bg-surface-2 px-3 py-2.5 text-sm text-ink">
               <input
