@@ -10,6 +10,15 @@ METERS_PER_MILE = 1609.344
 # response, only a transport-level exception.
 _MAX_ATTEMPTS = 2
 _RETRY_DELAY_SECONDS = 1.5
+# ORS snaps each coordinate to the nearest truck-routable road within 350 m
+# by default. A geocoder often returns the centroid of a town, district or
+# postcode, which can sit in open country well outside that, and the
+# request fails with error code 2010. On that specific error the request
+# is retried with progressively wider snapping radii (meters) before giving
+# up — the plan is still measured from the road the truck would actually
+# use, since the snapped point is where routing starts.
+_SNAP_RADII_METERS = (350, 2000, 10000)
+_UNROUTABLE_POINT_CODE = 2010
 
 
 class RoutingError(Exception):
@@ -25,34 +34,50 @@ def get_route(origin_coords: list, dest_coords: list, api_key: str) -> dict:
     average truck speed, never from ORS's own "duration" (which reflects
     car-like travel patterns with no awareness of FMCSA rest rules).
     """
-    last_exc: requests.RequestException | None = None
     resp = None
+    for radius in _SNAP_RADII_METERS:
+        resp = _post_directions(origin_coords, dest_coords, api_key, radius)
+        if resp.status_code == 200:
+            features = resp.json().get("features", [])
+            if not features:
+                raise RoutingError("No route found between the given locations.")
+            feature = features[0]
+            distance_meters = feature["properties"]["summary"]["distance"]
+            return {
+                "distance_miles": distance_meters / METERS_PER_MILE,
+                "geometry": feature["geometry"]["coordinates"],
+            }
+        if not _is_unroutable_point(resp):
+            break
+
+    if _is_unroutable_point(resp):
+        raise RoutingError(
+            "One of the locations is not within 10 km of a road a truck can use. "
+            "Try a street address, a town centre or a highway exit instead of a district or region name."
+        )
+    raise RoutingError(f"Routing request failed ({resp.status_code}): {resp.text[:200]}")
+
+
+def _post_directions(origin_coords: list, dest_coords: list, api_key: str, radius_meters: int):
+    last_exc: requests.RequestException | None = None
     for attempt in range(_MAX_ATTEMPTS):
         try:
-            resp = requests.post(
+            return requests.post(
                 f"{ORS_BASE_URL}/v2/directions/driving-hgv/geojson",
-                json={"coordinates": [origin_coords, dest_coords]},
+                json={"coordinates": [origin_coords, dest_coords], "radiuses": [radius_meters, radius_meters]},
                 headers={"Authorization": api_key, "Content-Type": "application/json"},
                 timeout=20,
             )
-            break
         except requests.RequestException as exc:
             last_exc = exc
             if attempt < _MAX_ATTEMPTS - 1:
                 time.sleep(_RETRY_DELAY_SECONDS)
-    if resp is None:
-        raise RoutingError(f"Could not reach the routing service: {last_exc}") from last_exc
+    raise RoutingError(f"Could not reach the routing service: {last_exc}") from last_exc
 
-    if resp.status_code != 200:
-        raise RoutingError(f"Routing request failed ({resp.status_code}): {resp.text[:200]}")
 
-    features = resp.json().get("features", [])
-    if not features:
-        raise RoutingError("No route found between the given locations.")
+def _is_unroutable_point(resp) -> bool:
+    try:
+        return resp.json().get("error", {}).get("code") == _UNROUTABLE_POINT_CODE
+    except ValueError:
+        return False
 
-    feature = features[0]
-    distance_meters = feature["properties"]["summary"]["distance"]
-    return {
-        "distance_miles": distance_meters / METERS_PER_MILE,
-        "geometry": feature["geometry"]["coordinates"],
-    }
