@@ -8,7 +8,7 @@ from rest_framework.views import APIView
 
 from hos_engine import day_bucketing, engine, geometry
 from hos_engine import exceptions as hos_exceptions
-from hos_engine.geocoding import GeocodingError, geocode, suggest
+from hos_engine.geocoding import GeocodingError, geocode, reverse, suggest
 from hos_engine.routing import RoutingError, get_route
 from hos_engine.rules import (
     SHORT_HAUL_CDL,
@@ -250,3 +250,16 @@ def geocode_suggest(request):
     query = request.query_params.get("q", "")
     results = suggest(query, settings.ORS_API_KEY)
     return Response(results)
+
+
+@api_view(["GET"])
+def geocode_reverse(request):
+    """Proxies ORS's reverse geocoder so the timeline can name the nearest
+    town for an engine-placed stop. Never errors — returns {"label": null}
+    on any upstream issue."""
+    try:
+        lng = float(request.query_params.get("lng", ""))
+        lat = float(request.query_params.get("lat", ""))
+    except ValueError:
+        return Response({"label": None})
+    return Response({"label": reverse(lng, lat, settings.ORS_API_KEY)})

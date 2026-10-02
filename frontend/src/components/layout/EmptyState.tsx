@@ -1,9 +1,10 @@
 import { motion } from "framer-motion"
+import { Button } from "../ui/Button"
 import { EASE_OUT } from "../ui/motion"
 
 /** Pre-plan state: a drawn route with its required stops, one line of
  * instruction, and a way to see the tool populated without an API key. */
-export function EmptyState({ onLoadExample }: { onLoadExample: () => void }) {
+export function EmptyState({ onLoadExample, onOpenForm }: { onLoadExample: () => void; onOpenForm?: () => void }) {
   return (
     <div className="flex min-h-[60vh] flex-col items-center justify-center rounded-2xl border border-dashed border-line-strong bg-surface/60 px-6 py-14 text-center">
       <svg viewBox="0 0 320 140" className="w-[280px] max-w-full" role="img" aria-label="A route with a pickup, a break, a rest and a dropoff">
@@ -47,15 +48,18 @@ export function EmptyState({ onLoadExample }: { onLoadExample: () => void }) {
           />
         ))}
       </svg>
-      <h2 className="mt-6 text-base font-semibold text-ink">Plan a trip to see its route and daily logs</h2>
+      <h2 className="mt-6 text-base font-semibold text-ink">Enter a route to generate your plan</h2>
       <p className="mt-1 max-w-sm text-sm text-ink-2">Enter where the driver is, where the load is, and where it goes. Required breaks, rests and fuel stops are placed for you.</p>
-      <button
-        type="button"
-        onClick={onLoadExample}
-        className="focus-ring mt-5 rounded-xl border border-line bg-surface px-3.5 py-2 text-sm font-medium text-ink shadow-[var(--shadow-card)] transition-colors hover:border-line-strong hover:bg-surface-2"
-      >
-        See an example trip
-      </button>
+      <div className="mt-5 flex flex-wrap justify-center gap-2">
+        {onOpenForm && (
+          <Button variant="primary" onClick={onOpenForm}>
+            Enter a route
+          </Button>
+        )}
+        <Button variant="secondary" onClick={onLoadExample}>
+          See an example trip
+        </Button>
+      </div>
     </div>
   )
 }

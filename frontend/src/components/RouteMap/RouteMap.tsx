@@ -1,21 +1,17 @@
-import { useEffect, useRef } from "react"
-import { MapContainer, Marker, Polyline, Popup, TileLayer, useMap } from "react-leaflet"
 import L from "leaflet"
 import type { LatLngExpression, Polyline as LeafletPolyline } from "leaflet"
-import markerIcon2x from "leaflet/dist/images/marker-icon-2x.png"
-import markerIcon from "leaflet/dist/images/marker-icon.png"
-import markerShadow from "leaflet/dist/images/marker-shadow.png"
+import { Expand, LocateFixed, Minimize } from "lucide-react"
+import { useCallback, useEffect, useMemo, useRef, useState } from "react"
+import { renderToStaticMarkup } from "react-dom/server"
+import { MapContainer, Marker, Pane, Polyline, Popup, TileLayer, useMap } from "react-leaflet"
 import type { RouteStop, StopType, TripRoute } from "../../api/types"
-import { STOP_COLORS, STOP_LABELS, STOP_ORDER, restartLabel } from "../../config/stopTypes"
+import { STOP_COLORS, STOP_ICONS, STOP_LABELS, STOP_ORDER, restartLabel } from "../../config/stopTypes"
 import type { Theme } from "../../hooks/useTheme"
-
-// Leaflet's default marker icon paths don't resolve under Vite's bundler
-// unless re-pointed to the hashed asset URLs explicitly.
-L.Icon.Default.mergeOptions({
-  iconRetinaUrl: markerIcon2x,
-  iconUrl: markerIcon,
-  shadowUrl: markerShadow,
-})
+import { useUnits } from "../../hooks/useUnits"
+import { formatDayLabel, formatDistance } from "../../model/format"
+import { dayColor, fullRouteLine, overlapOffsets, splitRouteByDay } from "../../model/routeGeometry"
+import type { PlanDay } from "../../model/tripPlan"
+import { Tooltip } from "../ui/Tooltip"
 
 function toLatLng([lng, lat]: [number, number]): LatLngExpression {
   return [lat, lng]
@@ -26,46 +22,60 @@ function prefersReducedMotion(): boolean {
 }
 
 const MAX_MARKER_STAGGER_MS = 600
+const MARKER_SIZE = 30
 
-// Fixed at the larger (active) box size regardless of state: Leaflet
-// replaces this element outright on every `icon` prop change rather than
-// mutating it in place, so the size difference is expressed as a
-// `transform: scale()` on a constant-size box — never animating width/
-// height, which would otherwise force layout on every marker frame — and
-// the anchor point never has to shift between states either.
-const MARKER_BOX_SIZE = 20
+/** Shape + colour + icon per stop type, so no marker relies on colour
+ * alone; the running number ties it to the timeline's order. */
+const MARKER_SHAPE: Record<StopType, "circle" | "square" | "diamond" | "pin" | "hex"> = {
+  current: "circle",
+  pickup: "square",
+  dropoff: "pin",
+  fuel: "hex",
+  break: "circle",
+  rest: "diamond",
+  restart: "diamond",
+  cycle_wait: "hex",
+  return: "square",
+}
 
-function stopIcon(type: StopType, delayMs: number, active: boolean) {
+function stopIcon(type: StopType, n: number, delayMs: number, active: boolean, offset: [number, number]) {
   const color = STOP_COLORS[type]
-  const dotSize = active ? 20 : 14
-  const scale = dotSize / MARKER_BOX_SIZE
-  const ring = active ? `0 0 0 4px ${color}33, 0 0 0 1px rgba(0,0,0,0.25)` : "0 0 0 1px rgba(0,0,0,0.25)"
+  const Icon = STOP_ICONS[type]
+  const svg = renderToStaticMarkup(<Icon size={15} strokeWidth={2.5} color="white" aria-hidden="true" />)
+  const html = `<div class="marker-pop" style="animation-delay:${delayMs}ms"><div class="map-marker map-marker--${MARKER_SHAPE[type]}" data-active="${active}" style="background:${color};--marker-ring:${color}55">${svg}<span class="map-marker-n">${n}</span></div></div>`
   return L.divIcon({
     className: "",
-    html: `<div class="marker-pop" style="--marker-scale:${scale};animation-delay:${delayMs}ms;background:${color};width:${MARKER_BOX_SIZE}px;height:${MARKER_BOX_SIZE}px;border-radius:9999px;border:2px solid white;box-shadow:${ring};transition:box-shadow 150ms ease-out"></div>`,
-    iconSize: [MARKER_BOX_SIZE, MARKER_BOX_SIZE],
-    iconAnchor: [MARKER_BOX_SIZE / 2, MARKER_BOX_SIZE / 2],
+    html,
+    iconSize: [MARKER_SIZE, MARKER_SIZE],
+    iconAnchor: [MARKER_SIZE / 2 - offset[0], MARKER_SIZE / 2 - offset[1]],
+    popupAnchor: [offset[0], -MARKER_SIZE / 2 + offset[1]],
   })
 }
 
-function FitBounds({ positions }: { positions: LatLngExpression[] }) {
+function FitBounds({ positions, trigger }: { positions: LatLngExpression[]; trigger: number }) {
   const map = useMap()
   useEffect(() => {
     if (positions.length === 0) return
-    map.fitBounds(positions as [number, number][], { padding: [32, 32] })
-  }, [map, positions])
+    map.fitBounds(positions as [number, number][], { padding: [48, 48], animate: trigger > 0 && !prefersReducedMotion() })
+  }, [map, positions, trigger])
   return null
 }
 
-/** The route line traces itself in rather than appearing instantly — the
- * same drawing-a-line idea as the log sheet's status path, so the app reads
- * as one coherent visual idea (routes and timelines are both lines that
- * resolve) rather than two unrelated animation effects. */
-function AnimatedPolyline({ positions }: { positions: LatLngExpression[] }) {
-  const polylineRef = useRef<LeafletPolyline | null>(null)
-
+function InvalidateOnResize({ token }: { token: number }) {
+  const map = useMap()
   useEffect(() => {
-    const polyline = polylineRef.current
+    const id = setTimeout(() => map.invalidateSize(), 60)
+    return () => clearTimeout(id)
+  }, [map, token])
+  return null
+}
+
+/** Draws in rather than appearing instantly — the same drawing-a-line idea
+ * as the log sheet's status path. */
+function AnimatedPolyline({ positions, color, weight = 6 }: { positions: LatLngExpression[]; color: string; weight?: number }) {
+  const ref = useRef<LeafletPolyline | null>(null)
+  useEffect(() => {
+    const polyline = ref.current
     if (!polyline) return
     const path = polyline.getElement() as SVGPathElement | null
     if (!path) return
@@ -81,31 +91,9 @@ function AnimatedPolyline({ positions }: { positions: LatLngExpression[] }) {
     path.style.transition = "stroke-dashoffset 1100ms cubic-bezier(0.16, 1, 0.3, 1)"
     path.style.strokeDashoffset = "0"
   }, [positions])
-
-  return <Polyline ref={polylineRef} positions={positions} pathOptions={{ color: "var(--accent)", weight: 4, opacity: 0.95 }} />
+  return <Polyline ref={ref} positions={positions} pathOptions={{ color, weight, opacity: 0.95, lineCap: "round", lineJoin: "round" }} />
 }
 
-interface Props {
-  route: TripRoute
-  /** Parallel to `route.stops` — the trip-segment index each marker
-   * corresponds to (`null` for the current-location marker, which has no
-   * segment of its own), so a marker can be compared against the
-   * timeline/stops-list selection and highlighted as the same event. */
-  stopSegmentIndices?: (number | null)[]
-  activeSegmentIndex?: number | null
-  onSelectStop?: (segmentIndex: number) => void
-  onHoverStop?: (segmentIndex: number | null) => void
-  height?: string
-  theme: Theme
-  /** Only the "restart" marker/legend label depends on this — a trip can
-   * override the regulatory 34-hour default (see `restart_hours` on
-   * `TripResponse`). */
-  restartHours: number
-}
-
-/** Recenters on whichever stop just became active — without this, clicking
- * a timeline row for a stop off the current viewport would highlight a
- * marker the dispatcher can't see. */
 function PanToActive({ position }: { position: LatLngExpression | null }) {
   const map = useMap()
   useEffect(() => {
@@ -115,82 +103,181 @@ function PanToActive({ position }: { position: LatLngExpression | null }) {
   return null
 }
 
-export function RouteMap({
-  route,
-  stopSegmentIndices,
-  activeSegmentIndex,
-  onSelectStop,
-  onHoverStop,
-  height = "h-[420px]",
-  restartHours,
-  theme,
-}: Props) {
-  const routeLine = [...route.geometry.to_pickup, ...route.geometry.to_dropoff, ...(route.geometry.to_reporting ?? [])].map(toLatLng)
+interface Props {
+  route: TripRoute
+  days: PlanDay[]
+  /** Parallel to `route.stops` — the trip-segment index each marker
+   * corresponds to (`null` for the current-location marker). */
+  stopSegmentIndices: (number | null)[]
+  activeSegmentIndex: number | null
+  onSelectStop: (segmentIndex: number) => void
+  onHoverStop: (segmentIndex: number | null) => void
+  theme: Theme
+  restartHours: number
+}
+
+/** Esri's canvas basemaps: muted light/dark grounds with English labels,
+ * no API key. Base + reference (labels) layers, so the route line sits
+ * under the place names. */
+const TILES = {
+  light: {
+    base: "https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Base/MapServer/tile/{z}/{y}/{x}",
+    labels: "https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Reference/MapServer/tile/{z}/{y}/{x}",
+  },
+  dark: {
+    base: "https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}",
+    labels: "https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Reference/MapServer/tile/{z}/{y}/{x}",
+  },
+}
+const TILE_ATTRIBUTION = "Tiles &copy; Esri &mdash; Esri, HERE, Garmin, OpenStreetMap contributors"
+
+export function RouteMap({ route, days, stopSegmentIndices, activeSegmentIndex, onSelectStop, onHoverStop, theme, restartHours }: Props) {
+  const { units } = useUnits()
+  const wrapperRef = useRef<HTMLDivElement>(null)
+  const [fullscreen, setFullscreen] = useState(false)
+  const [fitTrigger, setFitTrigger] = useState(0)
+  const [hidden, setHidden] = useState<Set<StopType>>(new Set())
+
+  const routeLine = useMemo(() => fullRouteLine(route).map(toLatLng), [route])
+  const dayLines = useMemo(() => splitRouteByDay(route, days), [route, days])
+  const offsets = useMemo(() => overlapOffsets(route.stops.map((s) => s.coords)), [route.stops])
   const usedTypes = new Set(route.stops.map((s) => s.type))
   const labelFor = (type: StopType) => (type === "restart" ? restartLabel(restartHours) : STOP_LABELS[type])
-  const activeStopPosition =
-    activeSegmentIndex != null && stopSegmentIndices
-      ? (() => {
-          const i = stopSegmentIndices.indexOf(activeSegmentIndex)
-          return i >= 0 ? toLatLng(route.stops[i].coords) : null
-        })()
-      : null
+
+  const activeStopPosition = useMemo(() => {
+    if (activeSegmentIndex == null) return null
+    const i = stopSegmentIndices.indexOf(activeSegmentIndex)
+    return i >= 0 ? toLatLng(route.stops[i].coords) : null
+  }, [activeSegmentIndex, stopSegmentIndices, route.stops])
+
+  const toggleFullscreen = useCallback(() => {
+    const el = wrapperRef.current
+    if (!el) return
+    if (!fullscreen && el.requestFullscreen) {
+      el.requestFullscreen().catch(() => setFullscreen(true))
+    } else if (fullscreen && document.fullscreenElement) {
+      document.exitFullscreen().catch(() => setFullscreen(false))
+    } else {
+      setFullscreen((f) => !f)
+    }
+  }, [fullscreen])
+
+  useEffect(() => {
+    const onChange = () => setFullscreen(document.fullscreenElement === wrapperRef.current)
+    document.addEventListener("fullscreenchange", onChange)
+    return () => document.removeEventListener("fullscreenchange", onChange)
+  }, [])
+
+  useEffect(() => {
+    if (!fullscreen) return
+    const onKey = (e: KeyboardEvent) => e.key === "Escape" && !document.fullscreenElement && setFullscreen(false)
+    document.addEventListener("keydown", onKey)
+    return () => document.removeEventListener("keydown", onKey)
+  }, [fullscreen])
+
+  const toggleType = (type: StopType) =>
+    setHidden((h) => {
+      const next = new Set(h)
+      if (next.has(type)) next.delete(type)
+      else next.add(type)
+      return next
+    })
 
   return (
     <div>
-      <div className={`${height} w-full overflow-hidden rounded-2xl border border-line shadow-[var(--shadow-card)]`}>
-        <MapContainer
-          center={toLatLng(route.current_location_coords)}
-          zoom={6}
-          scrollWheelZoom={false}
-          className="h-full w-full"
-        >
-          <TileLayer
-            attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-            url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-            className={theme === "dark" ? "tiles-dark" : undefined}
-          />
-          <AnimatedPolyline positions={routeLine} />
+      <div ref={wrapperRef} className={`relative h-[340px] w-full overflow-hidden rounded-2xl border border-line bg-surface-3 shadow-[var(--shadow-2)] sm:h-[420px] xl:h-[560px] ${fullscreen ? "map-fullscreen" : ""}`}>
+        <MapContainer center={toLatLng(route.current_location_coords)} zoom={6} scrollWheelZoom={fullscreen} className="h-full w-full" attributionControl>
+          <TileLayer key={`${theme}-base`} attribution={TILE_ATTRIBUTION} url={TILES[theme].base} maxZoom={16} />
+          <Pane name="labels" style={{ zIndex: 450, pointerEvents: "none" }}>
+            <TileLayer key={`${theme}-labels`} url={TILES[theme].labels} maxZoom={16} />
+          </Pane>
+          {dayLines.length > 1 ? (
+            dayLines.map((d) => <AnimatedPolyline key={d.dayIndex} positions={d.positions} color={dayColor(d.dayIndex)} />)
+          ) : (
+            <AnimatedPolyline positions={routeLine} color={dayColor(0)} />
+          )}
           {route.stops.map((stop: RouteStop, i: number) => {
-            const segmentIndex = stopSegmentIndices?.[i] ?? null
+            if (hidden.has(stop.type)) return null
+            const segmentIndex = stopSegmentIndices[i] ?? null
             const isActive = segmentIndex != null && segmentIndex === activeSegmentIndex
             return (
               <Marker
                 key={`${stop.type}-${i}`}
                 position={toLatLng(stop.coords)}
-                icon={stopIcon(stop.type, Math.min(i * 70, MAX_MARKER_STAGGER_MS), isActive)}
+                icon={stopIcon(stop.type, i + 1, Math.min(i * 70, MAX_MARKER_STAGGER_MS), isActive, offsets[i])}
+                zIndexOffset={isActive ? 1000 : 0}
+                alt={`${i + 1}. ${labelFor(stop.type)}: ${stop.label}`}
                 eventHandlers={
                   segmentIndex != null
                     ? {
-                        click: () => onSelectStop?.(segmentIndex),
-                        mouseover: () => onHoverStop?.(segmentIndex),
-                        mouseout: () => onHoverStop?.(null),
+                        click: () => onSelectStop(segmentIndex),
+                        mouseover: () => onHoverStop(segmentIndex),
+                        mouseout: () => onHoverStop(null),
                       }
                     : undefined
                 }
               >
                 <Popup>
-                  <strong className="capitalize">{labelFor(stop.type)}</strong>
+                  <strong>
+                    {i + 1}. {labelFor(stop.type)}
+                  </strong>
                   <div>{stop.label}</div>
                 </Popup>
               </Marker>
             )
           })}
-          <FitBounds positions={routeLine} />
+          <FitBounds positions={routeLine} trigger={fitTrigger} />
           <PanToActive position={activeStopPosition} />
+          <InvalidateOnResize token={fullscreen ? 1 : 0} />
         </MapContainer>
-      </div>
-      <div className="mt-3 flex flex-wrap gap-x-5 gap-y-2 px-1">
-        {STOP_ORDER.filter((type) => usedTypes.has(type)).map((type) => (
-          <div key={type} className="flex items-center gap-1.5 text-xs text-ink-2">
-            <span
-              aria-hidden="true"
-              className="inline-block h-2.5 w-2.5 rounded-full border border-surface ring-1 ring-line-strong"
-              style={{ backgroundColor: STOP_COLORS[type] }}
-            />
-            {labelFor(type)}
+
+        <div className="absolute top-3 right-3 z-[500] flex flex-col gap-1.5">
+          <Tooltip label="Recenter on route" side="left">
+            <button type="button" onClick={() => setFitTrigger((t) => t + 1)} aria-label="Recenter on route" className="focus-ring flex h-9 w-9 items-center justify-center rounded-lg border border-line bg-surface text-ink-2 shadow-[var(--shadow-1)] hover:text-ink">
+              <LocateFixed size={16} aria-hidden="true" />
+            </button>
+          </Tooltip>
+          <Tooltip label={fullscreen ? "Exit fullscreen" : "Fullscreen"} side="left">
+            <button type="button" onClick={toggleFullscreen} aria-label={fullscreen ? "Exit fullscreen map" : "Fullscreen map"} aria-pressed={fullscreen} className="focus-ring flex h-9 w-9 items-center justify-center rounded-lg border border-line bg-surface text-ink-2 shadow-[var(--shadow-1)] hover:text-ink">
+              {fullscreen ? <Minimize size={16} aria-hidden="true" /> : <Expand size={16} aria-hidden="true" />}
+            </button>
+          </Tooltip>
+        </div>
+
+        {dayLines.length > 1 && (
+          <div className="absolute bottom-6 left-3 z-[500] flex flex-wrap gap-1.5 rounded-lg border border-line bg-surface/90 px-2 py-1.5 text-xs text-ink-2 backdrop-blur" aria-label="Route colour by day">
+            {days
+              .filter((d) => d.odometerEnd > d.odometerStart)
+              .map((d) => (
+                <span key={d.index} className="flex items-center gap-1.5">
+                  <span className="h-1.5 w-4 rounded-full" style={{ backgroundColor: dayColor(d.index) }} aria-hidden="true" />
+                  Day {d.index + 1} <span className="text-ink-3">{formatDayLabel(d.date)}</span> · <span className="num">{formatDistance(d.miles, units)}</span>
+                </span>
+              ))}
           </div>
-        ))}
+        )}
+      </div>
+
+      {/* Legend as a filter: each chip toggles that stop type's markers. */}
+      <div className="mt-3 flex flex-wrap gap-1.5 px-1" role="group" aria-label="Filter stop types on the map">
+        {STOP_ORDER.filter((type) => usedTypes.has(type)).map((type) => {
+          const Icon = STOP_ICONS[type]
+          const off = hidden.has(type)
+          return (
+            <button
+              key={type}
+              type="button"
+              onClick={() => toggleType(type)}
+              aria-pressed={!off}
+              className={`focus-ring flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-medium transition-colors ${off ? "border-line bg-surface text-ink-3 line-through" : "border-line-strong bg-surface-2 text-ink"}`}
+            >
+              <span className={`map-marker map-marker--${MARKER_SHAPE[type]} !h-4 !w-4 !border-[1.5px] !shadow-none`} style={{ backgroundColor: off ? "var(--line-strong)" : STOP_COLORS[type] }} aria-hidden="true">
+                <Icon size={9} strokeWidth={3} />
+              </span>
+              {labelFor(type)}
+            </button>
+          )
+        })}
       </div>
     </div>
   )

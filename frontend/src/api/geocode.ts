@@ -12,3 +12,15 @@ export async function suggestLocations(query: string, signal?: AbortSignal): Pro
     return []
   }
 }
+
+/** Nearest town for an engine-placed stop. Null on any failure. */
+export async function reverseGeocode([lng, lat]: [number, number], signal?: AbortSignal): Promise<string | null> {
+  try {
+    const res = await fetch(`${API_BASE_URL}/api/geocode-reverse/?lng=${lng.toFixed(4)}&lat=${lat.toFixed(4)}`, { signal })
+    if (!res.ok) return null
+    const body = (await res.json()) as { label: string | null }
+    return body.label ?? null
+  } catch {
+    return null
+  }
+}

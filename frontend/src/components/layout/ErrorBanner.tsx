@@ -1,6 +1,7 @@
 import { motion } from "framer-motion"
-import { TriangleAlert } from "lucide-react"
+import { RefreshCw, TriangleAlert } from "lucide-react"
 import type { ApiError } from "../../api/types"
+import { Button } from "../ui/Button"
 import { rise } from "../ui/motion"
 
 const TITLES: Record<ApiError["kind"], string> = {
@@ -10,28 +11,26 @@ const TITLES: Record<ApiError["kind"], string> = {
   network: "Couldn't reach the server",
 }
 
-export function ErrorBanner({ error, onEdit }: { error: ApiError; onEdit: () => void }) {
+export function ErrorBanner({ error, onEdit, onRetry }: { error: ApiError; onEdit: () => void; onRetry?: () => void }) {
   if (error.kind === "validation") return null
+  const retryable = error.kind === "network" || error.kind === "server"
   return (
-    <motion.div
-      role="alert"
-      variants={rise}
-      initial="hidden"
-      animate="show"
-      className="flex items-start gap-3 rounded-2xl border border-red-300 bg-red-50 px-4 py-3 dark:border-red-800 dark:bg-red-950/40"
-    >
-      <TriangleAlert size={16} strokeWidth={2} className="mt-0.5 shrink-0 text-red-600 dark:text-red-400" aria-hidden="true" />
+    <motion.div role="alert" variants={rise} initial="hidden" animate="show" className="flex flex-wrap items-start gap-3 rounded-2xl border border-danger/40 bg-danger-soft px-4 py-3">
+      <TriangleAlert size={16} strokeWidth={2} className="mt-0.5 shrink-0 text-danger" aria-hidden="true" />
       <div className="min-w-0 flex-1">
-        <p className="text-sm font-semibold text-red-900 dark:text-red-200">{TITLES[error.kind]}</p>
-        <p className="mt-0.5 text-sm text-red-700 dark:text-red-300">{error.message}</p>
+        <p className="text-sm font-semibold text-danger-ink">{TITLES[error.kind]}</p>
+        <p className="mt-0.5 text-sm text-danger-ink/90">{error.message}</p>
       </div>
-      <button
-        type="button"
-        onClick={onEdit}
-        className="focus-ring shrink-0 rounded-lg border border-red-300 bg-surface px-2.5 py-1 text-xs font-semibold text-red-700 transition-colors hover:bg-red-100 dark:border-red-700 dark:text-red-300 dark:hover:bg-red-900/40"
-      >
-        Edit trip
-      </button>
+      <div className="flex gap-2">
+        {retryable && onRetry && (
+          <Button size="sm" variant="secondary" onClick={onRetry} leading={<RefreshCw size={13} aria-hidden="true" />}>
+            Retry
+          </Button>
+        )}
+        <Button size="sm" variant="ghost" onClick={onEdit}>
+          Edit trip
+        </Button>
+      </div>
     </motion.div>
   )
 }

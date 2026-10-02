@@ -68,3 +68,35 @@ def suggest(text: str, api_key: str, size: int = 5) -> list:
         {"label": f["properties"]["label"], "coords": f["geometry"]["coordinates"]}
         for f in resp.json().get("features", [])
     ]
+
+
+def reverse(lng: float, lat: float, api_key: str) -> str | None:
+    """Nearest named place (town/locality) for a coordinate, via ORS's
+    reverse endpoint. Used only to label engine-placed stops ("En route,
+    mile 440") with somewhere a dispatcher recognises. Returns None on any
+    failure — a place name is a nicety, never worth an error."""
+    try:
+        resp = requests.get(
+            f"{ORS_BASE_URL}/geocode/reverse",
+            params={
+                "api_key": api_key,
+                "point.lon": lng,
+                "point.lat": lat,
+                "size": 1,
+                "layers": "locality,localadmin,county",
+            },
+            timeout=6,
+        )
+    except requests.RequestException:
+        return None
+    if resp.status_code != 200:
+        return None
+    features = resp.json().get("features", [])
+    if not features:
+        return None
+    props = features[0].get("properties", {})
+    name = props.get("locality") or props.get("localadmin") or props.get("county") or props.get("name")
+    region = props.get("region_a") or props.get("region")
+    if not name:
+        return props.get("label")
+    return f"{name}, {region}" if region else name

@@ -1,13 +1,20 @@
 import { AnimatePresence, motion } from "framer-motion"
-import { Check, Copy, Printer } from "lucide-react"
-import { useState } from "react"
+import { AlertTriangle, ChevronLeft, ChevronRight, Copy, FileDown, Palette, Printer } from "lucide-react"
+import { useCallback, useEffect, useState } from "react"
 import type { DailyLog, DriverProfile, TripResponse } from "../../api/types"
-import { ELDLogSheet } from "../ELDLogSheet/ELDLogSheet"
+import { useLocalStorage } from "../../hooks/useLocalStorage"
+import { formatDayLabel } from "../../model/format"
+import type { PlanDay } from "../../model/tripPlan"
+import { ELDLogSheet, type SheetFields } from "../ELDLogSheet/ELDLogSheet"
 import { TabButton, TabList } from "../layout/TabButton"
-import { press, quick } from "../ui/motion"
+import { Button } from "../ui/Button"
+import { useToast } from "../ui/Toast"
+import { Tooltip } from "../ui/Tooltip"
+import { quick } from "../ui/motion"
 
 interface Props {
   logs: DailyLog[]
+  days: PlanDay[]
   driver: DriverProfile
   trip: TripResponse
   activeIndex?: number
@@ -19,99 +26,135 @@ interface Props {
 
 /** Plain-text rendition of one day's log for the clipboard: the same
  * figures an inspector reads off the sheet, in the same order. */
-function logToText(log: DailyLog, driver: DriverProfile): string {
+function logToText(log: DailyLog, driver: DriverProfile, fields: SheetFields): string {
   const lines = [
-    `Driver's Daily Log — ${log.date} — ${driver.driverName} (${driver.carrierName})`,
+    `Driver's Daily Log — ${formatDayLabel(log.date, true)} — ${driver.driverName} (${driver.carrierName})`,
     `Truck ${driver.truckTractorNumber} / Trailer ${driver.trailerNumbers}`,
     `Total miles driving today: ${log.total_miles}`,
+    fields.shipping_documents ? `Shipping documents: ${fields.shipping_documents}` : "",
+    fields.manifest_no ? `DVL/manifest no.: ${fields.manifest_no}` : "",
+    fields.shipper_commodity ? `Shipper & commodity: ${fields.shipper_commodity}` : "",
     "",
     ...log.segments.map((s) => `${s.start_time}–${s.end_time}  ${s.status.replace(/_/g, " ").padEnd(20)}  ${s.location_label}${s.remark ? ` — ${s.remark}` : ""}`),
     "",
-    `Totals: Off duty ${log.totals.OFF_DUTY.toFixed(2)}  Sleeper ${log.totals.SLEEPER_BERTH.toFixed(2)}  Driving ${log.totals.DRIVING.toFixed(2)}  On duty ${log.totals.ON_DUTY_NOT_DRIVING.toFixed(2)}`,
+    `Totals: Off duty ${log.totals.OFF_DUTY.toFixed(2)}  Sleeper ${log.totals.SLEEPER_BERTH.toFixed(2)}  Driving ${log.totals.DRIVING.toFixed(2)}  On duty ${log.totals.ON_DUTY_NOT_DRIVING.toFixed(2)}  = 24.00`,
     `Cycle hours used at end of day: ${log.cycle_hours_used_end_of_day.toFixed(2)}`,
-  ]
+  ].filter((l, i, arr) => l !== "" || arr[i - 1] !== "")
   return lines.join("\n")
 }
 
-export function LogSheetContainer({ logs, driver, trip, activeIndex, onActiveIndexChange, highlightMinutes, partnerDriverName, printSets }: Props) {
+const EMPTY_FIELDS: SheetFields = { shipping_documents: "", manifest_no: "", shipper_commodity: "" }
+
+export function LogSheetContainer({ logs, days, driver, trip, activeIndex, onActiveIndexChange, highlightMinutes, partnerDriverName, printSets }: Props) {
+  const { toast } = useToast()
   const [internalIndex, setInternalIndex] = useState(0)
-  const [copied, setCopied] = useState(false)
+  const [matchTheme, setMatchTheme] = useLocalStorage<boolean>("eld-log-match-theme", false)
+  const [fieldsByDate, setFieldsByDate] = useState<Record<string, SheetFields>>({})
+  const [printing, setPrinting] = useState<"pdf" | "print" | null>(null)
   const index = Math.min(activeIndex ?? internalIndex, logs.length - 1)
   const setIndex = onActiveIndexChange ?? setInternalIndex
-  if (logs.length === 0) return null
-  const setsToPrint = printSets ?? [{ driver, logs }]
   const log = logs[index]
+  const fieldsFor = useCallback((date: string) => fieldsByDate[date] ?? EMPTY_FIELDS, [fieldsByDate])
+
+  useEffect(() => {
+    const done = () => setPrinting(null)
+    window.addEventListener("afterprint", done)
+    return () => window.removeEventListener("afterprint", done)
+  }, [])
+
+  if (logs.length === 0 || !log) return null
+  const setsToPrint = printSets ?? [{ driver, logs }]
 
   async function copyLog() {
     try {
-      await navigator.clipboard.writeText(logToText(log, driver))
-      setCopied(true)
-      setTimeout(() => setCopied(false), 1600)
+      await navigator.clipboard.writeText(logToText(log, driver, fieldsFor(log.date)))
+      toast("success", "Copied as text", `Day ${index + 1} log is on your clipboard.`)
     } catch {
-      /* clipboard unavailable: nothing to recover */
+      toast("error", "Couldn't copy", "Your browser blocked clipboard access.")
     }
+  }
+
+  function print(mode: "pdf" | "print") {
+    setPrinting(mode)
+    toast("info", mode === "pdf" ? "Opening the print dialog" : "Preparing to print", mode === "pdf" ? 'Choose "Save as PDF" as the destination.' : `${setsToPrint.reduce((n, s) => n + s.logs.length, 0)} page(s), one per day.`)
+    setTimeout(() => {
+      window.print()
+      setTimeout(() => setPrinting(null), 1500)
+    }, 150)
   }
 
   function onTabKey(e: React.KeyboardEvent) {
     if (e.key === "ArrowRight") setIndex((index + 1) % logs.length)
     if (e.key === "ArrowLeft") setIndex((index - 1 + logs.length) % logs.length)
+    if (e.key === "Home") setIndex(0)
+    if (e.key === "End") setIndex(logs.length - 1)
   }
 
   return (
     <div>
       <div className="print:hidden">
-        <div className="mb-3 flex flex-wrap items-center justify-between gap-2" onKeyDown={onTabKey}>
-          <TabList label="Log day">
-            {logs.map((l, i) => (
-              <TabButton key={l.date} group="log-days" active={i === index} onClick={() => setIndex(i)} id={`log-tab-${i}`} controls="log-panel">
-                Day {i + 1}
-                <span className={`num ml-1.5 ${i === index ? "text-accent-ink/70 dark:text-ink-2" : "text-ink-3"}`}>{l.date.slice(5)}</span>
-              </TabButton>
-            ))}
-          </TabList>
-          <div className="flex gap-2">
-            <motion.button
-              type="button"
-              whileTap={press}
-              onClick={copyLog}
-              className="focus-ring inline-flex items-center gap-1.5 rounded-lg border border-line bg-surface px-2.5 py-1.5 text-xs font-medium text-ink-2 transition-colors hover:border-line-strong hover:text-ink"
-            >
-              <AnimatePresence mode="wait" initial={false}>
-                {copied ? (
-                  <motion.span key="ok" initial={{ scale: 0.7 }} animate={{ scale: 1 }} exit={{ opacity: 0 }} transition={quick} className="text-emerald-600 dark:text-emerald-400">
-                    <Check size={13} strokeWidth={2.5} />
-                  </motion.span>
-                ) : (
-                  <motion.span key="copy" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={quick}>
-                    <Copy size={13} strokeWidth={2} />
-                  </motion.span>
-                )}
-              </AnimatePresence>
-              {copied ? "Copied" : "Copy"}
-            </motion.button>
-            <motion.button
-              type="button"
-              whileTap={press}
-              onClick={() => window.print()}
-              className="focus-ring inline-flex items-center gap-1.5 rounded-lg border border-line bg-surface px-2.5 py-1.5 text-xs font-medium text-ink-2 transition-colors hover:border-line-strong hover:text-ink"
-            >
-              <Printer size={13} strokeWidth={2} aria-hidden="true" />
+        <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+          <div className="flex items-center gap-1" onKeyDown={onTabKey}>
+            <Tooltip label="Previous day">
+              <button type="button" onClick={() => setIndex(Math.max(0, index - 1))} disabled={index === 0} aria-label="Previous day" className="btn btn-secondary focus-ring h-8 w-8 rounded-lg disabled:opacity-40">
+                <ChevronLeft size={15} aria-hidden="true" />
+              </button>
+            </Tooltip>
+            <TabList label="Log day">
+              {logs.map((l, i) => {
+                const day = days.find((d) => d.date === l.date)
+                const warn = day?.status === "warning"
+                return (
+                  <TabButton key={l.date} group="log-days" active={i === index} onClick={() => setIndex(i)} id={`log-tab-${i}`} controls="log-panel">
+                    <span className="flex items-center gap-1.5">
+                      <span className={`h-1.5 w-1.5 rounded-full ${warn ? "bg-warning" : "bg-success"}`} aria-hidden="true" />
+                      Day {i + 1}
+                      <span className="sr-only">{warn ? ", needs attention" : ", OK"}</span>
+                      <span className={`num ${i === index ? "text-accent-ink/70 dark:text-ink-2" : "text-ink-3"}`}>{formatDayLabel(l.date).replace(/^\w+,\s/, "")}</span>
+                      <span className={`num ${i === index ? "text-accent-ink/70 dark:text-ink-2" : "text-ink-3"}`}>· {l.totals.DRIVING.toFixed(1)} h</span>
+                      {warn && <AlertTriangle size={11} className="text-warning" aria-hidden="true" />}
+                    </span>
+                  </TabButton>
+                )
+              })}
+            </TabList>
+            <Tooltip label="Next day">
+              <button type="button" onClick={() => setIndex(Math.min(logs.length - 1, index + 1))} disabled={index === logs.length - 1} aria-label="Next day" className="btn btn-secondary focus-ring h-8 w-8 rounded-lg disabled:opacity-40">
+                <ChevronRight size={15} aria-hidden="true" />
+              </button>
+            </Tooltip>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <Button size="sm" variant={matchTheme ? "primary" : "secondary"} onClick={() => setMatchTheme(!matchTheme)} aria-pressed={matchTheme} leading={<Palette size={13} aria-hidden="true" />}>
+              Match theme
+            </Button>
+            <Button size="sm" variant="secondary" onClick={copyLog} leading={<Copy size={13} aria-hidden="true" />}>
+              Copy as text
+            </Button>
+            <Button size="sm" variant="secondary" onClick={() => print("pdf")} loading={printing === "pdf"} leading={<FileDown size={13} aria-hidden="true" />}>
               Export PDF
-            </motion.button>
+            </Button>
+            <Button size="sm" variant="secondary" onClick={() => print("print")} loading={printing === "print"} leading={<Printer size={13} aria-hidden="true" />}>
+              Print
+            </Button>
           </div>
         </div>
         <AnimatePresence mode="wait" initial={false}>
-          <motion.div
-            key={log.date}
-            id="log-panel"
-            role="tabpanel"
-            aria-labelledby={`log-tab-${index}`}
-            initial={{ opacity: 0, y: 6 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -4 }}
-            transition={quick}
-          >
-            <ELDLogSheet log={log} driver={driver} trip={trip} allLogs={logs} dayIndex={index} highlightMinutes={highlightMinutes} partnerDriverName={partnerDriverName} />
+          <motion.div key={log.date} id="log-panel" role="tabpanel" aria-labelledby={`log-tab-${index}`} initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -4 }} transition={quick}>
+            <div className="rounded-xl bg-surface-3/60 p-2 sm:p-4">
+              <ELDLogSheet
+                log={log}
+                driver={driver}
+                trip={trip}
+                allLogs={logs}
+                dayIndex={index}
+                highlightMinutes={highlightMinutes}
+                partnerDriverName={partnerDriverName}
+                matchTheme={matchTheme}
+                fields={fieldsFor(log.date)}
+                onFieldChange={(key, value) => setFieldsByDate((f) => ({ ...f, [log.date]: { ...fieldsFor(log.date), [key]: value } }))}
+              />
+            </div>
           </motion.div>
         </AnimatePresence>
       </div>
@@ -120,7 +163,7 @@ export function LogSheetContainer({ logs, driver, trip, activeIndex, onActiveInd
         {setsToPrint.map(({ driver: setDriver, logs: setLogs, partnerDriverName: setPartnerName }) =>
           setLogs.map((l, i) => (
             <div key={`${setDriver.id}-${l.date}`} className="eld-print-page">
-              <ELDLogSheet log={l} driver={setDriver} trip={trip} allLogs={setLogs} dayIndex={i} partnerDriverName={setPartnerName} />
+              <ELDLogSheet log={l} driver={setDriver} trip={trip} allLogs={setLogs} dayIndex={i} partnerDriverName={setPartnerName} matchTheme={false} fields={fieldsFor(l.date)} />
             </div>
           )),
         )}
